@@ -1,0 +1,367 @@
+"TonUtil.fif" include
+"Asm.fif" include
+
+// Builtin words are lowercase (single words)
+// Library words are usually lowercase kebab-case (like parse-workchain-id)
+// Asm words are ALLCAPS (no spaces)
+//
+// So I decided to write names for my own constants/variables in CamelCase (capitalized, usually multiword)
+// Custom subroutines include "()" at the end of name (like "usage()" below)
+//
+// Some comments are marking the state of stack at that point:
+// .s -> <bottom-most element> ... <top-most element>
+
+{
+  dup pair? {
+    unpair
+    dup null? {
+      drop
+    } {
+      @' print-list()
+    } cond
+  } if
+  ."    " .dump cr
+} : print-list()
+
+// ~
+// ( -- )
+// 
+// Similar to .s (prints current stack), but prints each value on a separate line,
+// tries to unwrap Lists and surrounds the output with '<STACK>' and
+// '</STACK>', so it's more noticable.
+
+{
+  cr ."<STACK>" cr
+  depth
+  { dup 0> } {
+    dup pick
+    dup tuple? {
+      ."  LIST:[" cr
+      print-list() 
+      ."  ]"
+    } {
+      ."  "
+      .dump
+    } cond
+    cr
+    1-
+  } while
+  drop
+  ."</STACK>" cr cr
+} : ~
+
+// show-usage()
+// ( -- )
+//
+// Prints contents of globally defined usage() and halts with exit code 1.
+
+{ ."Usage: " @' $0 type ." " @' usage() cr 1 halt } : show-usage()
+
+// check-arg-count()
+// (min max -- )
+//
+// Checks if the number of script arguments is between <min> and <max>.
+// If it's not, looks up the `usage()` word, executes it and halt with exit code 1.
+
+{
+  $# < swap $# > or { ."Usage: " @' $0 type ." " @' usage() cr 1 halt } if
+} : check-arg-count()
+
+// option-long()
+// (i counter argument processed short-name long-name param-count handler -- i' counter argument processed')
+//
+// Option is a predefined command-line argument that consumes some number of following arguments
+// and passes them to the handler. Handler is expected to remove all those values from the stack.
+// This word is for options with two forms: short (like "-O <filename>") and long (like "--output <filename>").
+// Shows usage if there's not enough arguments in the command line left.
+
+{
+  rot 5 pick $= 3 roll 5 pick $= or {
+    swap dup 6 roll
+    // counter argument processed handler param-count param-count' i
+    { over 0> } { // Move option's params to the stack
+      1+ dup $# <= {
+        show-usage()
+      } ifnot
+      dup $()
+      4 -roll // -> ...<new param> handler param-count param-count' i
+      swap 1- swap
+    } while
+    nip swap 4 + -roll
+    // i counter argument processed <param>x<param-count> handler
+    execute
+    1+
+  } {
+    drop drop
+  } cond
+} : option-long()
+
+// option()
+// (i counter argument processed name param-count handler -- i' counter argument processed')
+//
+// Option is a predefined command-line argument that consumes some number of following arguments
+// and passes them to the handler. Handler is expected to remove all those values from the stack.
+
+{ 2 pick -rot option-long() } : option()
+
+// switch()
+// (i counter argument processed name handler -- i' counter argument processed')
+//
+// Switch is a 0-parameter command line option (boolean flag).
+
+{ 0 swap option() } : switch()
+
+// switch-long()
+// (i counter argument processed short-name long-name handler -- i' counter argument processed')
+//
+// Switch that has two forms: short (like "-f") and long (like "--enable-feature").
+
+{ 0 swap option-long() } : switch-long()
+
+// nth-argument()
+// (i counter argument processed n handler -- i' counter argument processed')
+//
+// Handles n-th command line argument (1-indexed, not including options/switches and their params).
+// Invokes handler with the argument value. Handler is expected to remove that value from stack.
+
+{
+  2 pick {
+    2drop
+  } {
+    swap 4 pick 1+ = {
+      2 pick swap execute
+      rot 1+ -rot
+      1+
+    } {
+      drop
+    } cond
+  } cond
+} : nth-argument()
+
+// other-argument()
+// (i counter argument processed handler -- i' counter argument processed')
+//
+// Handles rest of arguments by invoking handler if current argument was not yet processed.
+// Handler receives following params: (counter argument) and is expected to remove them from stack.
+
+{
+  over {
+    drop
+  } {
+    3 pick 3 pick rot 
+    execute
+    rot 1+ -rot
+  } cond
+} : other-argument()
+
+// no-more-arguments()
+// (processed -- processed)
+//
+// Check value on top of the stack and if it's false, shows usage and exits the app.
+
+{
+  dup {
+    show-usage()
+  } ifnot
+} : no-more-arguments()
+
+// scan-args()
+// (e -- argcount)
+//
+// Executes block e for each of the command-line arguments.
+// On each run, e receives (i counter argument processed?), where i is the original index of the argument,
+// counter is index amoung non-option arguments (like "-F") and their parameters, starting from 0,
+// argument is the actual string value of the argument, and processed? is always 0.
+// Block e is expected to leave those values on stack (potentially updating them).
+// Returns the final value of the counter.
+
+{
+  1 0 { over $# <= } {
+    over $() 0
+    4 pick execute
+    drop drop
+    swap 1+ swap
+  } while
+  nip nip
+} : scan-args()
+
+// reverse-list()
+// (l - l')
+//
+// Returns List in reversed order.
+
+{
+  null { over null? not } {
+    // l l'
+    swap uncons
+    // l' h t
+    2 exch cons
+    // t l'
+  } while
+  nip
+} : reverse-list()
+
+// =:? <word>
+// (value -- )
+//
+// Defines new constant (similarly to =:), but only if it was not defined before (this allows to set a default value to it).
+
+{ bl word dup (def?) { 2drop } { ({) rot 1 'nop (compile) (}) swap 0 (create) } cond 0 'nop } :: =:?
+
+// runvm()
+// ( -- )
+//
+// Extended version of `runvm` word. Allows execution of custom methods (not only `main`).
+
+{
+  <{
+    // Simulate SmartContractInfo in the c7 register 
+    0 PUSHINT
+    0 PUSHINT
+    0 PUSHINT
+    now PUSHINT
+    4 TUPLE
+    SINGLE
+    c7 POP
+  }>s rot <s |+ swap
+
+  runvm
+} : runvm()
+
+// ="<string>"
+//
+// Equivalent of "<string>" =
+
+{ char " word 1 ' $= } ::_ ="
+
+// internal-message()
+// ( -- )
+//
+// Prepare a cell containing an internal message carrying some amount of grams and some custom body.
+/*
+{
+  <b
+    b{01} s,
+    BounceFlag 1 i,
+    b{000100} s,
+    DestAddr addr,
+    Amount Gram,
+    0 9 64 32 + + 1+ u, 
+
+    // TODO: decode this magic
+    TransferBody <s 2dup s-fits? not rot over 1 i, -rot { drop TransferBody ref, } { s, } cond
+  b>
+} : internal-message()
+*/
+
+// maybe,
+// (slice [value or null] writer -- slice)
+//
+// If value is null, just writes b{0} to slice. Otherwise writes b{1} and executes writer.
+{
+  over null? {
+    drop drop
+    b{0} s,
+  } {
+    rot // -> value writer slice
+    b{1} s,
+    -rot
+    execute
+  } cond
+} : maybe,
+
+// maybe@+
+// (slice reader -- [null or value] slice)
+//
+// If next bit in slice is 0, pushes null (and slice). Otherwise, executes reader.
+{
+  swap 1 i@+ // -> reader bit slice
+  2 exch {
+    null swap
+  } cond
+} : maybe@+
+
+// state-init()
+// (code data libs -- cell)
+// 
+// Prepare a cell containing StateInit struct
+{
+  <b
+    b{0011} s,
+    3 roll ref,
+    rot ref,
+    swap dict,
+  b>
+} : state-init()
+
+// parse-state-init()
+// (slice -- tuple(code, data, libs) slice)
+//
+// Decodes StateInit struct from current slice and returns it as a tuple (as well as slice).
+{
+  1 u@+
+  swap 0b0   <> abort"Expected no split_depth in StateInit"
+  1 u@+
+  swap 0b0   <> abort"Expected no TickTock in StateInit"
+  {
+    ref@+ swap
+  } maybe@+ // Code
+  {
+    ref@+ swap
+  } maybe@+ // Data
+  {
+    dict@+ swap
+  } maybe@+ // Libs
+  3 -roll triple swap
+} : parse-state-init()
+
+// external-message()
+// (wc addr [state-init or null] body -- cell)
+//
+// Prepare a cell containing an external message carrying custom body.
+{
+  <b
+    b{1000100} s,           // ext_in_msg_info#10 src=b{00} (none) dst=b{10} (std) anycast?=b{0}
+    4 roll 4 roll addr,
+    0 Gram,                 // import_fee
+    2 roll {
+      swap
+      b{0} s,
+      swap
+      <s s,
+    } maybe,                // maybe StateInit?
+    b{1} s,                 // = Message in ref?
+    swap ref,
+  b>
+} : external-message()
+
+// parse-external-message()
+// (cell -- wc addr [state-init or null] body)
+//
+// Decodes Message struct, ensures it uses ext_in_msg_info$10 constructor.
+// Throws errors if that struct does not exactly match output of external-message()
+// (even it still corresponds to a valid Message).
+{
+  <s
+    2 u@+
+    swap 0b10   <> abort"Expected ext_in_msg_info$10 constructor"
+    2 u@+
+    swap 0b00   <> abort"Expected addr_none$00 in src field"
+    2 u@+
+    swap 0b10   <> abort"Expected addr_std$10 in dest field"
+    1 u@+
+    swap 0b0    <> abort"Expected no anycast in dest field"
+    8 i@+       // workchain_id
+    256 u@+     // address
+    Gram@+
+    swap 0      <> abort"Expected import_fee=0"
+    {
+      1 u@+
+      swap 0b0  <> abort"Expected inlined StateInit"
+      parse-state-init()
+    } maybe@+   // maybe StateInit
+    1 u@+
+    swap 0b1    <> abort"Expected message body in ref"
+    ref@+ swap
+  s>
+} : parse-external-message()

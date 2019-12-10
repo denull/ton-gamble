@@ -1,0 +1,15 @@
+;; Multi-signature wallet smart contract
+
+() recv_internal(slice in_msg) impure {
+  ;; do nothing for internal messages
+}
+
+() recv_external(slice in_msg) impure {
+  var cs = in_msg;
+
+  set_data(
+    begin_cell()
+      .store_uint(pubkey, 256)
+    .end_cell()
+  );
+}
