@@ -1,0 +1,47 @@
+#!/usr/bin/env fift -s
+"common-utils.fif" include
+
+{
+  ."<data-boc> <method-id> <args>... [-C <code-fif>]" cr
+  ."Simulate calling a get method of a smart contract."
+} : usage()
+
+// == Parsing command-line arguments
+
+variable Args 
+{
+  "-C" "--code-file" 1 { +".fif" include =: Code } option-long()
+
+  1 { =: OldDataFile } nth-argument()
+  2 { =: MethodName } nth-argument()
+  {
+    Args @ cons Args !
+    drop
+  } other-argument()
+} scan-args()
+2 < { show-usage() } if // Checks that there's enough arguments
+
+// == End of parsing command-line arguments
+
+"code-getters.fif" include =:? Code
+
+// Having a word to compute method id by its name would be nice...
+MethodName ="seqno" { 85143 =: MethodId } if
+def? MethodId {
+  MethodName (number) 1- abort"Calling methods by their names is not supported now, use its numeric id" =: MethodId
+} ifnot
+OldDataFile +".boc" file>B B>boc =: Data
+."Data: " cr Data <s csr. cr
+
+Args @ reverse-list() { dup null? not } {
+  uncons swap parse-int swap
+} while drop
+
+MethodId Code Data runvm()
+
+=: NewData
+=: ExitCode
+
+."Exit code: " ExitCode . cr
+
+."Result:" ~

@@ -1,0 +1,43 @@
+#!/usr/bin/env fift -s
+"common-utils.fif" include
+
+{ ."<init-query> [<new-data-boc>] [-C <code-fif>]" cr
+  ."Simulate creation of a smart contract locally."
+} : usage()
+
+// == Parsing command-line arguments
+
+{
+  "-C" "--code-file" 1 { +".fif" include =: Code } option-long()
+
+  1 { =: BaseFile } nth-argument()
+  2 { =: NewDataFile } nth-argument()
+  no-more-arguments()
+} scan-args()
+1 < { show-usage() } if // Checks that there's enough arguments
+
+// == End of parsing command-line arguments
+
+."Loading init message from " BaseFile +"-init-query.boc" type cr cr
+
+BaseFile +"-init-query.boc" file>B B>boc parse-external-message()
+=: Message =: StateInit 2drop
+
+StateInit untriple =: Libs =: Data =: CodeCell
+
+BaseFile +"-data-0" =:? NewDataFile
+CodeCell =:? Code
+
+Data <s csr. cr
+
+Message <s recv_external Code Data runvm()
+
+=: NewData
+=: ExitCode
+
+."Exit code: " ExitCode . cr
+."Updated data: " cr NewData <s csr. cr
+
+."Saving updated data to " NewDataFile +".boc" type cr
+
+NewData 2 boc+>B NewDataFile +".boc" B>file
