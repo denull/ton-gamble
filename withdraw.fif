@@ -1,0 +1,60 @@
+#!/usr/bin/env fift -s
+"gamble-utils.fif" include
+
+{ ."<contract> <dest-addr> <seqno> <amount> [-O <output-boc>]" cr
+  ."Creates a money withdrawal request to a game contract, with address loaded from file <contract>.addr "
+  ."and private keys from <contract>.pk, and saves it into <output-boc>.boc ('<contract>-query.boc' by default)."
+} : usage()
+
+// == Parsing command-line arguments
+
+{
+  "-O" "--output-file" 1 { =: SaveFile } option-long()
+
+  1 { =: BaseFile } nth-argument()
+  2 { =: DestRaw } nth-argument()
+  3 { parse-int =: SeqNo } nth-argument()
+  4 { $>GR =: Amount } nth-argument()
+  no-more-arguments()
+} scan-args()
+4 < { show-usage() } if // Checks that there's enough arguments
+
+// == End of parsing command-line arguments
+
+true =: BounceFlag
+DestRaw BounceFlag parse-load-address =: BounceFlag 2=: DestAddr
+BaseFile +"-query" =:? SaveFile
+
+def? BodyFile {
+  @' BodyFile +".boc" file>B B>boc
+} {
+  <b 0 32 u, b>
+} cond =: TransferBody
+
+BaseFile +".addr" load-address
+2dup 2constant ContractAddr
+."Source contract address = " 2dup .addr cr 6 .Addr cr
+
+BaseFile +".pk" load-keypair
+=: PrivateKey
+=: PublicKey
+
+."Creating new order to transfer " Amount .GR ."to account " DestAddr 2dup BounceFlag 7 + .Addr ." = " .addr 
+."seqno=0x" SeqNo x. cr
+
+."Body of transfer message is " TransferBody <s csr. cr
+
+ContractAddr null
+<b
+  SeqNo 32 u,
+  -1 32 i,
+  1 32 u,     // action = 1: withdraw
+  DestAddr addr, 
+  Amount Gram, 
+b> PrivateKey sign-message()
+external-message() =: ExtMessage
+
+."Withdrawal external message: " ExtMessage <s csr. cr
+ExtMessage 2 boc+>B dup Bx. cr
+SaveFile +".boc" tuck B>file
+."(Saved to file " type .")" cr

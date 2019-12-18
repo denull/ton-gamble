@@ -1,15 +1,463 @@
-;; Multi-signature wallet smart contract
 
-() recv_internal(slice in_msg) impure {
-  ;; do nothing for internal messages
+() send_money(int wc, int addr, int amount) impure {
+  send_raw_message(begin_cell()
+    .store_uint(0xc4, 9)
+    .store_uint(wc, 8)
+    .store_uint(addr, 256)
+    .store_grams(amount)
+    .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+    .store_uint(0, 32) ;; Simple money transfer
+  .end_cell(), 3);
+}
+
+() send_message_back(slice addr, ans_tag, query_id, body, extra, grams, mode) impure {
+  ;; int_msg_info$0 ihr_disabled:Bool bounce:Bool bounced:Bool src:MsgAddress -> 011000
+  var msg = begin_cell()
+    .store_uint(0x18, 6)
+    .store_slice(addr)
+    .store_grams(grams)
+    .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+    .store_uint(ans_tag, 32)
+    .store_uint(query_id, 64);
+  if (body >= 0) {
+    msg~store_uint(body, 32);
+  }
+  if (extra >= 0) {
+    msg~store_uint(extra, 32);
+  }
+  send_raw_message(msg.end_cell(), mode);
+}
+
+(slice, (int, int, int, int, int, int, int)) ~load_common_game_fields(slice game) {
+  var fields = (game~load_uint(8),
+    game~load_uint(32), game~load_uint(32), 
+    game~load_grams(), game~load_grams(), game~load_grams(),
+    game~load_uint(32)
+  );
+  return (game, fields);
+}
+
+_ pack_state(int seqno, int owner_pubkey, slice notification_addr, int reserved_balance, cell games) inline_ref {
+  return begin_cell()
+    .store_uint(seqno, 32)
+    .store_uint(owner_pubkey, 256)
+    .store_slice(notification_addr)
+    .store_grams(reserved_balance)
+    .store_dict(games)
+  .end_cell();
+}
+
+(int, int, slice, int, cell) unpack_state() {
+  var cs = get_data().begin_parse();
+  var res = (cs~load_uint(32), cs~load_uint(256), cs~load_bits(256 + 8), cs~load_grams(), cs~load_dict());
+  cs.end_parse();
+  return res;
+}
+
+(int, int, int, int, int) check_blind_bids(game_type, bidding_fee, bids, reserved_balance, force_completion) {
+  var winner_wc = 0;
+  var winner_addr = 0;
+  var winner_bid = 0;
+  var winner_sent = 0;
+  var all_decrypted = true;
+  var bidder_addr = -1;
+  do {
+    (bidder_addr, var bid, var f) = bids.udict_get_next?(256, bidder_addr);
+    if (f) {
+      var wc = bid~load_uint(8);
+      var received_amount = bid~load_grams();
+      var bid_signature = bid~load_bits(512);
+      ifnot (bid.slice_data_empty?()) {
+        var actual_amount = bid~load_grams();
+        if (actual_amount > winner_bid) {
+          ;; TODO: handle case when there's two equal top bids (the first one wins?)
+          winner_wc = wc;
+          winner_addr = bidder_addr;
+          winner_bid = actual_amount;
+          winner_sent = received_amount;
+        }
+      } else {
+        all_decrypted = false;
+      }
+    }
+  } until (~ f);
+
+  if ((winner_bid == 0) | (~ force_completion & ~ all_decrypted)) {
+    return (winner_wc, winner_addr, winner_bid, all_decrypted, reserved_balance);
+  }
+
+  bidder_addr = -1;
+  var second_bid = 0;
+  do {
+    (bidder_addr, var bid, var f) = bids.udict_get_next?(256, bidder_addr);
+    if (f) {
+      var wc = bid~load_uint(8);
+      var received_amount = bid~load_grams();
+      ifnot (bidder_addr == winner_addr) {
+        reserved_balance = reserved_balance - (received_amount - bidding_fee);
+        send_money(wc, bidder_addr, received_amount - bidding_fee);
+
+        var bid_signature = bid~load_bits(512);
+        ifnot (bid.slice_data_empty?()) {
+          var actual_amount = bid~load_grams();
+          if ((actual_amount > second_bid) & (actual_amount < winner_bid)) {
+            second_bid = actual_amount;
+          }
+        }
+      }
+    }
+  } until (~ f);
+
+  if (second_bid == 0) {
+    second_bid = winner_bid;
+  }
+
+  if (game_type == 65) {
+    ;; Vickrey game: winner pays second price instead of his own
+    winner_bid = second_bid;
+  }
+
+  if (winner_sent > winner_bid) {
+    reserved_balance = reserved_balance - (winner_sent - winner_bid);
+    send_money(winner_wc, winner_addr, winner_sent - winner_bid);
+  }
+
+  return (winner_wc, winner_addr, winner_bid, all_decrypted, reserved_balance);
+}
+
+(cell, ()) ~complete_game(cell games, int game_id, slice notification_addr, int winner_wc, int winner_addr, int winner_bid) impure {
+  var (game, game_found) = games~udict_delete_get?(32, game_id);
+  send_raw_message(begin_cell()
+    .store_uint(0xc4, 9)       ;; 0 11000100
+    .store_slice(notification_addr)
+    .store_grams(1 << 30)
+    .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+    .store_uint(0x27fca6b9, 32)   ;; Notification query
+    .store_uint(game_id, 64)
+    .store_uint(winner_wc, 8)     ;; Bidder workchain
+    .store_uint(winner_addr, 256) ;; Bidder addr (can be 0 if there was no bids!)
+    .store_grams(winner_bid)      ;; Winning bid amount
+    .store_ref( ;; Detailed info about game (before this bid)
+      begin_cell().store_slice(game).end_cell()
+    )
+  .end_cell(), 3);
+  return (games, ());
+}
+
+() recv_internal(int msg_value, cell in_msg_cell, slice in_msg) impure {
+  var cs = in_msg_cell.begin_parse();
+  var flags = cs~load_uint(4);  ;; int_msg_info$0 ihr_disabled:Bool bounce:Bool bounced:Bool
+  if (flags & 1) { ;; ignore bounced
+    return ();
+  }
+  if (in_msg.slice_empty?()) {
+    return ();
+  }
+  slice src_addr_slice = cs~load_msg_addr();
+  var (src_wc, src_addr) = parse_std_addr(src_addr_slice);
+  var op = in_msg~load_uint(32);
+  if (op == 0) {
+    return ();
+  }
+  var (stored_seqno, owner_pubkey, notification_addr, reserved_balance, games) = unpack_state();
+  int query_id = in_msg~load_uint(64);
+  if (op == 100) {
+    ;; Place a bid
+    var game_id = in_msg~load_uint(32);
+    var (game, game_found) = games.udict_get?(32, game_id);
+    ifnot (game_found) {
+      return send_message_back(src_addr_slice, 0xfffffffe, query_id, op, 36, 0, 64);
+    }
+
+    var (game_type, start_time, end_time, bidding_fee, initial_price, buyout_price, stock_size) = game~load_common_game_fields();
+    ifnot (start_time < now()) { ;; => game is not yet started
+      return send_message_back(src_addr_slice, 0xfffffffe, query_id, op, 46, 0, 64);
+    }
+    ifnot (end_time > now()) { ;; => game is already finished
+      return send_message_back(src_addr_slice, 0xfffffffe, query_id, op, 47, 0, 64);
+    }
+    ifnot (msg_value >= bidding_fee) { ;; => attached value is not enough even for a fee
+      return send_message_back(src_addr_slice, 0xfffffffe, query_id, op, 48, 0, 64);
+    }
+    
+    var is_won = false;
+    if (game_type < 64) {
+      ;; English game
+      if ((buyout_price > 0) & (msg_value >= buyout_price)) {
+        ;; Enough money to instantly complete this game
+        is_won = true;
+      }
+      ifnot (msg_value >= initial_price) { ;; => attached value is not enough even for initial price
+        return send_message_back(src_addr_slice, 0xfffffffe, query_id, op, 49, 0, 64);
+      }
+
+      var minimum_step = game~load_grams();
+      var current_price = game~load_grams();
+      if ((current_price != 0) & (msg_value < current_price + minimum_step)) { ;; => attached value is not enough to outbid current top bidder
+        return send_message_back(src_addr_slice, 0xfffffffe, query_id, op, 50, 0, 64);
+      }
+
+      ifnot (current_price == 0) {
+        ;; Replace current bidder, return him his bid
+        reserved_balance = reserved_balance - (current_price - bidding_fee);
+        send_money(game~load_uint(8), game~load_uint(256), current_price - bidding_fee);
+      }
+
+      if (is_won) {
+        ;; Remove game from state, send notification
+        games~complete_game(game_id, notification_addr, src_wc, src_addr, msg_value);
+      }
+
+      if ((is_won & (stock_size > 0)) | (~ is_won)) {
+        var game_builder = begin_cell()
+          .store_uint(game_type, 8)
+          .store_uint(start_time, 32)
+          .store_uint(end_time, 32)
+          .store_grams(bidding_fee)
+          .store_grams(initial_price)
+          .store_grams(buyout_price);
+        if (is_won) {
+          ;; Decrease stock size and restart game (with no initial bidder)
+          game_builder = game_builder
+            .store_uint(stock_size - 1, 32)
+            .store_grams(minimum_step)
+            .store_grams(0);
+        } else {
+          ;; Just update the bidder
+          reserved_balance = reserved_balance + (msg_value - bidding_fee);
+          game_builder = game_builder
+            .store_uint(stock_size, 32)
+            .store_grams(minimum_step)
+            .store_grams(msg_value)
+            .store_uint(src_wc, 8)
+            .store_uint(src_addr, 256);
+        }
+        games~udict_set_builder(32, game_id, game_builder);
+      }
+
+      set_data(pack_state(stored_seqno, owner_pubkey, notification_addr, reserved_balance, games));
+      return ();
+    } else {
+      ;; Blind game
+      var decrypt_time = game~load_uint(32);
+      var fixed_amount = game~load_grams();
+      ifnot (msg_value >= fixed_amount) { ;; => all bids should be equal to the fixed price (the remainders will be returned later)
+        return send_message_back(src_addr_slice, 0xfffffffe, query_id, op, 51, 0, 64);
+      }
+      if ((buyout_price > fixed_amount) & (msg_value >= buyout_price)) {
+        is_won = true;
+      }
+      var bids = game~load_dict();
+      var (bid, bid_found) = bids.udict_get?(256, src_addr);
+      if (~ is_won & bid_found) { ;; => already participated in this game (not allowed in blind games)
+        return send_message_back(src_addr_slice, 0xfffffffe, query_id, op, 52, 0, 64);
+      }
+
+      if (is_won) {
+        ;; Remove game from state, send notification
+        games~complete_game(game_id, notification_addr, src_wc, src_addr, msg_value);
+      }
+      
+      if ((is_won & (stock_size > 0)) | (~ is_won)) {
+        var game_builder = begin_cell()
+          .store_uint(game_type, 8)
+          .store_uint(start_time, 32)
+          .store_uint(end_time, 32)
+          .store_grams(bidding_fee)
+          .store_grams(initial_price)
+          .store_grams(buyout_price);
+        if (is_won) {
+          ;; Decrease stock size and restart game (with empty bidders list)
+          game_builder = game_builder
+            .store_uint(stock_size - 1, 32)
+            .store_uint(decrypt_time, 32)
+            .store_grams(fixed_amount)
+            .store_dict(new_dict());
+        } else {
+          ;; Add to bidders
+          reserved_balance = reserved_balance + (msg_value - bidding_fee);
+          var bid_signature = in_msg~load_bits(512);
+
+          ;; Store encrypted bid for later
+          bids~udict_set_builder(256, src_addr, begin_cell()
+            .store_uint(src_wc, 8)
+            .store_grams(msg_value)
+            .store_slice(bid_signature));
+
+          game_builder = game_builder
+            .store_uint(stock_size, 32)
+            .store_uint(decrypt_time, 32)
+            .store_grams(fixed_amount)
+            .store_dict(bids);
+        }
+        games~udict_set_builder(32, game_id, game_builder);
+      }
+
+      set_data(pack_state(stored_seqno, owner_pubkey, notification_addr, reserved_balance, games));
+      return ();
+    }
+  }
+
+  ifnot (op & (1 << 31)) {
+    ;; unknown query, return error
+    return send_message_back(src_addr_slice, 0xffffffff, query_id, op, 0, 0, 64);
+  }
 }
 
 () recv_external(slice in_msg) impure {
+  var signature = in_msg~load_bits(512);
   var cs = in_msg;
+  var (msg_seqno, valid_until, op) = (cs~load_uint(32), cs~load_uint(32), cs~load_uint(32));
+  throw_if(35, valid_until < now());
 
-  set_data(
-    begin_cell()
-      .store_uint(pubkey, 256)
-    .end_cell()
-  );
+  var (stored_seqno, owner_pubkey, notification_addr, reserved_balance, games) = unpack_state();
+  throw_unless(33, msg_seqno == stored_seqno);
+  stored_seqno = stored_seqno + 1;
+
+  if (op == 101) {
+    ;; Ping an game (trigger winner selection if now() >= end_time or, for blind games, now() >= decrypt_time)
+    var current_pubkey = cs~load_uint(256);
+    throw_unless(34, check_signature(slice_hash(in_msg), signature, current_pubkey));
+
+    var game_id = cs~load_uint(32);
+    var (game, game_found) = games.udict_get?(32, game_id);
+    throw_unless(36, game_found);
+
+    var (game_type, start_time, end_time, bidding_fee, initial_price, buyout_price, stock_size) = game~load_common_game_fields();
+    throw_unless(38, end_time < now()); ;; => game is not yet finished
+    var winner_wc = 0;
+    var winner_addr = 0;
+    var winner_bid = 0;
+    var decrypt_time = 0;
+    if (game_type < 64) {
+      accept_message();
+      ;; English game
+      var initial_price = game~load_grams();
+      var minimum_step = game~load_grams();
+      winner_bid = game~load_grams();
+      ifnot (winner_bid == 0) {
+        winner_wc = game~load_uint(8);
+        winner_addr = game~load_uint(256);
+        reserved_balance = reserved_balance - (winner_bid - bidding_fee);
+      }
+    } else {
+      ;; Blind game
+      var decrypt_time = game~load_uint(32);
+      throw_if(45, decrypt_time > now()); ;; => game's decryption stage is not yet finished
+      accept_message();
+      var fixed_amount = game~load_grams();
+      var bids = game~load_dict();
+      (winner_wc, winner_addr, winner_bid, var all_decrypted, reserved_balance) = check_blind_bids(game_type, bidding_fee, bids, reserved_balance, true);
+    }
+
+    ;; Remove game from state, send notification
+    games~complete_game(game_id, notification_addr, winner_wc, winner_addr, winner_bid);
+  } elseif (op == 102) {
+    ;; Decrypt an encrypted bid (in a blind game)
+    var current_pubkey = cs~load_uint(256);
+    throw_unless(35, check_signature(slice_hash(in_msg), signature, current_pubkey));
+    var bid_body = cs~load_ref().begin_parse();
+    var bid_hash = slice_hash(bid_body);
+    var (game_id, current_wc, current_addr, actual_amount) = (bid_body~load_uint(32), bid_body~load_uint(8), bid_body~load_uint(256), bid_body~load_grams());
+    var (game, game_found) = games.udict_get?(32, game_id);
+    throw_unless(36, game_found);
+
+    var (game_type, start_time, end_time, bidding_fee, initial_price, buyout_price, stock_size) = game~load_common_game_fields();
+    throw_unless(37, game_type >= 64); ;; decrypt needed only for blind games
+    throw_unless(38, end_time < now()); ;; => game is not yet finished
+    var decrypt_time = game~load_uint(32);
+    var fixed_amount = game~load_grams();
+    var bids = game~load_dict();
+    throw_unless(39, decrypt_time > now()); ;; => game's decryption stage is already finished
+
+    var (bid, bid_found) = bids.udict_get?(256, current_addr);
+    throw_unless(40, bid_found);
+
+    var wc = bid~load_uint(8);
+    throw_unless(41, wc == current_wc);
+    var received_amount = bid~load_grams();
+    var bid_signature = bid~load_bits(512);
+    throw_unless(42, check_signature(bid_hash, bid_signature, current_pubkey));
+
+    set_data(pack_state(stored_seqno, owner_pubkey, notification_addr, reserved_balance, games));
+    commit();
+    accept_message();
+
+    if ((actual_amount >= initial_price) & (actual_amount <= received_amount)) {
+      bids~udict_set_builder(256, current_addr, begin_cell()
+        .store_uint(wc, 8)
+        .store_grams(received_amount)
+        .store_slice(bid_signature)
+        .store_grams(actual_amount));
+    }
+
+    var (winner_wc, winner_addr, winner_bid, all_decrypted, reserved_balance) = check_blind_bids(game_type, bidding_fee, bids, reserved_balance, false);
+
+    if (all_decrypted) {
+      ;; Remove game from state, send notification
+      games~complete_game(game_id, notification_addr, winner_wc, winner_addr, winner_bid);
+    }
+  } else {
+    throw_unless(34, check_signature(slice_hash(in_msg), signature, owner_pubkey));
+    set_data(pack_state(stored_seqno, owner_pubkey, notification_addr, reserved_balance, games));
+    commit();
+    accept_message();
+
+    if (op == 1) {
+      var transfer_balance = 0;
+      var (total_balance, other_currencies) = uncons(get_balance());
+
+      ;; Withdraw money (just like from a regular wallet)
+      cs~touch();
+      while (~ cs.slice_empty?()) {
+        var (wc, addr, amount) = (cs~load_uint(8), cs~load_uint(256), cs~load_grams());
+        transfer_balance += amount;
+        throw_if(43, reserved_balance >= total_balance - transfer_balance);
+        send_money(wc, addr, amount);
+      }
+    } elseif (op == 2) {
+      ;; Create new game
+      var game_id = cs~load_uint(32);
+      var game_data = cs~load_ref();
+      var (game, game_found) = games.udict_get?(32, game_id);
+      throw_if(44, game_found);
+      games~udict_set(32, game_id, game_data.begin_parse());
+    } elseif (op == 3) {
+      ;; Cancel an game
+      var game_id = cs~load_uint(32);
+      var (game, game_found) = games.udict_get?(32, game_id);
+      throw_unless(36, game_found);
+
+      ;; Return all current bids
+      var (game_type, start_time, end_time, bidding_fee, initial_price, buyout_price, stock_size) = game~load_common_game_fields();
+      if (game_type < 64) {
+        var minimum_step = game~load_grams();
+        var current_price = game~load_grams();
+        if (current_price > 0) {
+          reserved_balance = reserved_balance - (current_price - bidding_fee);
+          send_money(game~load_uint(8), game~load_uint(256), current_price - bidding_fee);
+        }
+      } else {
+        var bids = game~load_dict();
+        var bidder_addr = -1;
+        do {
+          (bidder_addr, var bid, var f) = bids.udict_get_next?(256, bidder_addr);
+          if (f) {
+            var wc = bid~load_uint(8);
+            var received_amount = bid~load_grams();
+            reserved_balance = reserved_balance - (received_amount - bidding_fee);
+            send_money(wc, bidder_addr, received_amount - bidding_fee);
+          }
+        } until (~ f);
+      }
+      games~udict_delete_get?(32, game_id);
+    }
+  }
+  set_data(pack_state(stored_seqno, owner_pubkey, notification_addr, reserved_balance, games));
+}
+
+;; Returns current sequence number
+
+int seqno() method_id {
+  return get_data().begin_parse().preload_uint(32);
 }

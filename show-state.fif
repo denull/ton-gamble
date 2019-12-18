@@ -1,0 +1,73 @@
+#!/usr/bin/env fift -s
+"gamble-utils.fif" include
+
+{
+  ."<data-boc>" cr
+  ."Displays data stored within the persisting storage of a game contract."
+} : usage()
+
+// == Parsing command-line arguments
+
+{
+  1 { =: BaseFile } nth-argument()
+  no-more-arguments()
+} scan-args()
+1 < { show-usage() } if // Checks that there's enough arguments
+
+// == End of parsing command-line arguments
+
+."Loading state from " BaseFile +".boc" type cr cr
+
+BaseFile +".boc" file>B B>boc =: ContractData
+."Raw data: " cr ContractData <s csr. cr
+
+ContractData parse-data()
+=: Games =: ReservedBalance =: OwnerPubkey =: SeqNo
+
+."Data:" cr
+."  seqno:             " SeqNo . cr
+."  owner_pubkey:      " OwnerPubkey Bx. cr
+."  reserved_balance:  " ReservedBalance .GR cr
+
+."  games:" cr
+Games 32 {
+  ."    #" over ._ .":" cr
+  8 u@+ over  ."    ┌  game_type:   " . cr
+  32 u@+ swap ."    │  start_time:     " . cr
+  32 u@+ swap ."    │  end_time:       " . cr
+  Gram@+ swap ."    │  bidding_fee:    " .GR cr
+  Gram@+ swap ."    │  initial_price:  " .GR cr
+  Gram@+ swap ."    │  buyout_price:   " .GR cr
+  32 u@+ swap ."    │  stock_size:     " . cr
+  swap 64 < {
+    Gram@+ swap ."    │  minimum_step:   " .GR cr
+                ."    │" cr
+    Gram@+ over ."    │  current_price:  " .GR cr
+    swap {
+      8 i@+ 256 u@+ -rot ."    └  current_bidder: " .addr cr
+    } {
+      ."    └  current_bidder: (nobody)" cr
+    } cond
+  } {
+    32 u@+ swap ."    │  decrypt_time:   " . cr
+    Gram@+ swap ."    │  fixed_amount:   " .GR cr
+                ."    │" cr
+                ."    │  bids:" cr
+    dict@+ swap 256 {
+      8 i@+ -rot swap ."    │  ┌  bidder_addr:     " .addr cr
+      Gram@+ swap     ."    │  │  received_amount: " .GR cr
+      64 B@+ swap     ."    │  │  bid_signature:   " Bx. cr
+                      ."    │  │" cr
+      sbits {
+        Gram@+ swap   ."    │  └  actual_bid:      " .GR cr
+      } {
+                      ."    │  └  (actual bid amount is not presented yet)" cr
+      } cond
+      -1
+    } dictforeach
+    ."    └" cr
+    drop
+  } cond
+  -1
+} dictforeach
+drop

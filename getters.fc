@@ -1,0 +1,118 @@
+;; These are useful methods, however they take precious bytes of storage.
+;; It's still possible to call them w/o uploading to TON.
+
+tuple game_tuple(int game_type, int start_time, int end_time, int bidding_fee, int initial_price, int buyout_price, int minimum_step, int decrypt_time, int fixed_amount)
+  asm(game_type start_time end_time bidding_fee initial_price buyout_price minimum_step decrypt_time fixed_amount) "9 TUPLE";
+
+tuple bid_tuple(int bidder_wc, int bidder_addr, int received_amount, int actual_amount)
+  asm(bidder_wc bidder_addr received_amount actual_amount) "4 TUPLE";
+
+;; Returns owner's pubkey
+
+int owner_pubkey() method_id {
+  var ds = get_data().begin_parse().skip_bits(32);
+  return ds~load_uint(256);
+}
+
+;; Returns notification addr
+
+slice notification_addr() method_id {
+  var ds = get_data().begin_parse().skip_bits(32 + 256);
+  return ds~load_bits(8 + 256);
+}
+
+;; Returns reserved amount
+
+int reserved_amount() method_id {
+  var ds = get_data().begin_parse().skip_bits(32 + 256 + 8 + 256);
+  return ds~load_grams();
+}
+
+;; Returns list of all active games
+
+_ games() method_id {
+  var ds = get_data().begin_parse().skip_bits(32 + 256 + 8 + 256);
+  ds~load_grams();
+  var games = ds~load_dict();
+  if (games.null?()) {
+    return nil;
+  }
+
+  var l = nil;
+  var id = 0x7fffffff;
+  var f = true;
+  do {
+    (id, var game, f) = games.udict_get_prev?(32, id);
+    if (f) {
+      var (game_type, start_time, end_time, bidding_fee, initial_price, buyout_price) = (
+        game~load_uint(8),
+        game~load_uint(32), game~load_uint(32), 
+        game~load_grams(), game~load_grams(), game~load_grams()
+      );
+      var minimum_step = 0;
+      var decrypt_time = 0;
+      var fixed_amount = 0;
+      if (game_type < 64) {
+        minimum_step = game~load_grams();
+      } else {
+        decrypt_time = game~load_uint(32);
+        fixed_amount = game~load_grams();
+      }
+      l = cons(game_tuple(game_type, start_time, end_time, bidding_fee, initial_price, buyout_price, minimum_step, decrypt_time, fixed_amount), l);
+    }
+  } until (~ f);
+  return l;
+}
+
+;; Returns list of all bidders in a blind game or a top bidder in an open game
+
+_ bidders(int game_id) method_id {
+  var ds = get_data().begin_parse().skip_bits(32 + 256 + 8 + 256);
+  ds~load_grams();
+  var games = ds~load_dict();
+  if (games.null?()) {
+    return nil;
+  }
+
+  var (game, game_found) = games.udict_get?(32, game_id);
+  throw_unless(36, game_found);
+
+  var (game_type, start_time, end_time, bidding_fee, initial_price, buyout_price) = (
+    game~load_uint(8),
+    game~load_uint(32), game~load_uint(32), 
+    game~load_grams(), game~load_grams(), game~load_grams()
+  );
+
+  var l = nil;
+  if (game_type < 64) {
+    var minimum_step = game~load_grams();
+    var received_amount = game~load_grams();
+    if (received_amount != 0) {
+      var bidder_addr_slice = game~load_bits(256 + 8);
+      var (bidder_wc, bidder_addr) = (bidder_addr_slice~load_uint(8), bidder_addr_slice~load_uint(256));
+      l = cons(bid_tuple(bidder_wc, bidder_addr, received_amount, received_amount), l);
+    }
+    return l;
+  } else {
+    var decrypt_time = game~load_uint(32);
+    var fixed_amount = game~load_grams();
+    var bids = game~load_dict();
+    var bidder_addr = (1 << 255) + ((1 << 255) - 1);
+    do {
+      (bidder_addr, var bid, var f) = bids.udict_get_prev?(256, bidder_addr);
+      if (f) {
+        var (bidder_wc, received_amount) = (
+          bid~load_uint(32),
+          bid~load_grams()
+        );
+        var actual_amount = 0;
+        var bid_signature = bid~load_bits(512);
+        ifnot (bid.slice_data_empty?()) {
+          actual_amount = bid~load_grams();
+        }
+        l = cons(bid_tuple(bidder_wc, bidder_addr, received_amount, actual_amount), l);
+      }
+    } until (~ f);
+    return l;
+  }
+}
