@@ -1,10 +1,16 @@
 // automatically generated from `../src/crypto/smartcont/stdlib.fc` `code.fc` `getters.fc` 
 PROGRAM{
   DECLPROC ~store_game
+  DECLPROC get_initial_state
   DECLPROC ~load_prize
   DECLPROC ~load_participant
   DECLPROC ~load_random_prize
   DECLPROC send_money
+  DECLPROC blackjack_card_value
+  DECLPROC blackjack_hand_value
+  DECLPROC blackjack_is_over
+  DECLPROC blackjack_check_state
+  DECLPROC ~blackjack_apply_move
   DECLPROC lottery_raffle
   DECLPROC return_tickets
   DECLPROC send_message_back
@@ -83,6 +89,47 @@ PROGRAM{
       DICTUSETB
     }>
   }>
+  get_initial_state PROC:<{
+    DROP
+    64 EQINT
+    IFJMP:<{
+      NEWDICT
+      52 PUSHINT
+      RAND
+      NEWC
+      8 STU
+      129 PUSHINT
+      ROT
+      8 PUSHINT
+      DICTUSETB
+      52 PUSHINT
+      RAND
+      NEWC
+      8 STU
+      1 PUSHINT
+      ROT
+      8 PUSHINT
+      DICTUSETB
+      52 PUSHINT
+      RAND
+      NEWC
+      8 STU
+      2 PUSHINT
+      ROT
+      8 PUSHINT
+      DICTUSETB
+      1 PUSHINT
+      2 PUSHINT
+      NEWC
+      8 STU
+      8 STU
+      8 PUSHPOW2DEC
+      ROT
+      8 PUSHINT
+      DICTUSETB
+    }>
+    NEWDICT
+  }>
   ~load_prize PROC:<{
     8 LDU
     64 LDU
@@ -126,6 +173,252 @@ PROGRAM{
     ENDC
     3 PUSHINT
     SENDRAWMSG
+  }>
+  blackjack_card_value PROC:<{
+    SWAP
+    2 RSHIFT#
+    DUP
+    8 LESSINT
+    IFJMP:<{
+      NIP
+      2 ADDCONST
+    }>
+    12 LESSINT
+    IFJMP:<{
+      DROP
+      10 PUSHINT
+    }>
+    IFJMP:<{
+      1 PUSHINT
+    }>
+    11 PUSHINT
+  }>
+  blackjack_hand_value PROC:<{
+    0 PUSHINT
+    UNTIL:<{
+      8 PUSHINT
+      s5 s4 PUSH2
+      DICTUGET
+      NULLSWAPIFNOT
+      DUP
+      IF:<{
+        SWAP
+        8 LDU
+        DROP
+        DUP
+        FALSE
+        blackjack_card_value CALLDICT
+        s3 s0 PUSH2
+        ADD
+        s5 PUSH
+        GREATER
+        s6 PUSH
+        AND
+        IF:<{
+          DROP
+          TRUE
+          blackjack_card_value CALLDICT
+        }>ELSE<{
+          NIP
+        }>
+        s1 s2 XCHG
+        ADD
+      }>ELSE<{
+        -ROT
+        DROP
+      }>
+      SWAP
+      NOT
+    }>
+    s0 s4 XCHG
+    4 BLKDROP
+  }>
+  blackjack_is_over PROC:<{
+    NIP
+    NIP
+    1 PUSHINT
+    TRUE
+    s2 s(-1) s(-1) PUXC2
+    21 PUSHINT
+    blackjack_hand_value CALLDICT
+    DUP
+    21 GTINT
+    IFJMP:<{
+      2DROP
+      -1 PUSHINT
+    }>
+    129 PUSHINT
+    TRUE
+    s3 s(-1) s(-1) PUXC2
+    21 PUSHINT
+    blackjack_hand_value CALLDICT
+    DUP
+    21 GTINT
+    IFJMP:<{
+      3 BLKDROP
+      1 PUSHINT
+    }>
+    1 PUSHINT
+    FALSE
+    s4 s(-1) s(-1) PUXC2
+    21 PUSHINT
+    blackjack_hand_value CALLDICT
+    129 PUSHINT
+    FALSE
+    s2 s5 XCHG
+    21 PUSHINT
+    blackjack_hand_value CALLDICT
+    s0 s2 XCHG
+    21 EQINT
+    s0 s3 XCHG
+    21 EQINT
+    s1 s3 XCHG
+    OR
+    s0 s2 XCHG
+    21 EQINT
+    SWAP
+    21 EQINT
+    OR
+    2DUP
+    AND
+    IFJMP:<{
+      2DROP
+      2 PUSHINT
+    }>
+    SWAP
+    IFJMP:<{
+      DROP
+      1 PUSHINT
+    }>
+    IFJMP:<{
+      -1 PUSHINT
+    }>
+    0 PUSHINT
+  }>
+  blackjack_check_state PROC:<{
+    s6 s5 s4 XCHG3
+    blackjack_is_over CALLDICT
+    DUP
+    2 EQINT
+    IF:<{
+      NIP
+      3 -ROLL
+      send_money CALLDICT
+    }>ELSE<{
+      DUP
+      1 EQINT
+      IF:<{
+        32 PUSHINT
+        ROT
+        1 PUSHINT
+        DICTUGET
+        NULLSWAPIFNOT
+        IF:<{
+          ~load_prize CALLDICT
+          s2 POP
+          s2 POP
+          s2 POP
+          s3 s3 XCHG2
+          MUL
+          32 PUSHPOW2DEC
+          DIV
+          s1 s2 XCHG
+          ADD
+          s3 s3 s0 XCHG3
+          send_money CALLDICT
+        }>ELSE<{
+          s1 s4 XCHG
+          4 BLKDROP
+        }>
+      }>ELSE<{
+        s0 s4 XCHG
+        4 BLKDROP
+      }>
+    }>
+    0 EQINT
+  }>
+  ~blackjack_apply_move PROC:<{
+    8 PUSHINT
+    s4 PUSH
+    8 PUSHPOW2DEC
+    DICTUGET
+    NULLSWAPIFNOT
+    DROP
+    8 LDU
+    8 LDU
+    DROP
+    s2 PUSH
+    IF:<{
+      52 PUSHINT
+      RAND
+      NEWC
+      8 STU
+      SWAP
+      8 PUSHINT
+      s3 s7 s7 PUXC2
+      DICTUSETB
+      SWAP
+      INC
+    }>ELSE<{
+      s5 s5 XCHG2
+    }>
+    s4 s3 s1 XCPU2
+    blackjack_is_over CALLDICT
+    0 NEQINT
+    s1 s2 XCHG
+    AND
+    IFJMP:<{
+      s0 s3 XCHG
+      3 BLKDROP
+    }>
+    129 PUSHINT
+    TRUE
+    s2 s(-1) s(-1) PUXC2
+    17 PUSHINT
+    blackjack_hand_value CALLDICT
+    18 LESSINT
+    DUP
+    NOT
+    s0 s3 XCHG
+    1 PUSHINT
+    AND
+    s1 s3 XCHG
+    AND
+    IF:<{
+      NIP
+      129 PUSHINT
+      FALSE
+      s2 s(-1) s(-1) PUXC2
+      17 PUSHINT
+      blackjack_hand_value CALLDICT
+      18 LESSINT
+    }>ELSE<{
+      SWAP
+    }>
+    IF:<{
+      52 PUSHINT
+      RAND
+      NEWC
+      8 STU
+      7 PUSHPOW2
+      s4 PUSH
+      ADD
+      ROT
+      8 PUSHINT
+      DICTUSETB
+      s0 s2 XCHG
+      INC
+    }>ELSE<{
+      s0 s2 XCHG
+    }>
+    NEWC
+    s1 s2 XCHG
+    8 STU
+    8 STU
+    8 PUSHPOW2DEC
+    ROT
+    8 PUSHINT
+    DICTUSETB
   }>
   lottery_raffle PROC:<{
     -1 PUSHINT
@@ -556,86 +849,140 @@ PROGRAM{
         64 PUSHINT
         send_message_back CALLDICT
       }>
-      16 s() POP
-      20 s() POP
-      21 s() POP
-      s11 s9 XCPU
+      s14 s12 XCPU
       8 PUSHPOW2
       DICTUGET
       NULLSWAPIFNOT
+      s12 PUSH
+      63 GTINT
+      s1 s(-1) PUXC
+      AND
+      IFJMP:<{
+        12 BLKDROP
+        s5 s9 XCHG
+        9 BLKDROP
+        s2 POP
+        s3 POP
+        s3 POP
+        4294967294 PUSHINT
+        50 PUSHINT
+        0 PUSHINT
+        s3 s5 XCHG
+        s2 s4 XCHG
+        64 PUSHINT
+        send_message_back CALLDICT
+      }>
+      17 s() POP
+      21 s() POP
+      22 s() POP
       0 PUSHINT
-      DUP
-      NEWDICT
-      s0 s3 XCHG
+      s0 s10 s9 PUSH3
+      get_initial_state CALLDICT
+      23 s() PUSH
+      26 s() PUSH
+      s0 19 s() XCHG
       IF:<{
-        3 BLKDROP
+        4 BLKDROP
+        s14 POP
+        s0 18 s() XCHG
         ~load_participant CALLDICT
-        s3 POP
-        s3 POP
-        s3 POP
+        s5 POP
       }>ELSE<{
-        s0 s0 s3 XCHG3
+        s5 23 s() XCHG
+        s4 18 s() XCHG
+        s5 s4 XCHG2
+        3 -ROLL
         DROP
       }>
-      s0 s2 XCHG
-      24 s() PUSH
+      SWAP
+      26 s() PUSH
       ADD
       s1 s15 XCPU
       ADD
-      s1 s13 XCHG
-      s0 24 s() XCHG
+      s1 22 s() XCHG
+      s0 26 s() XCHG
       ADD
-      s3 s14 XCHG2
+      s5 s14 XCHG2
       ADD
-      NEWC
-      s1 20 s() XCHG
-      8 STU
-      21 s() PUSH
-      SWAP
-      256 STU
-      s0 s11 XCHG2
-      STGRAMS
-      s1 21 s() XCHG
-      32 STU
-      s1 20 s() XCHG
-      STREF
-      s0 s2 XCHG
-      s1 18 s() XCHG
-      s0 s6 XCHG
-      8 PUSHPOW2
-      DICTUSETB
-      s14 PUSH
-      18 s() PUSH
-      GEQ
-      s4 PUSH
-      64 LESSINT
-      AND
-      DUP
+      TRUE
+      FALSE
+      s12 PUSH
+      0 EQINT
       IF:<{
-        s4 PUSH
-        0 EQINT
+        DROP
+        s2 POP
+        s4 POP
+        s3 s4 PUSH2
+        GEQ
+      }>ELSE<{
+        s12 PUSH
+        64 EQINT
         IF:<{
-          s6 s1 s9 PUSH3
-          lottery_raffle CALLDICT
+          NIP
+          s11 s(-1) s0 PUXC2
+          s11 s(-1) s0 PUXC2
+          s5 s(-1) s0 PUXC2
+          16 s() PUSH
+          s0 s6 s9 XCHG3
+          25 s() PUSH
+          blackjack_check_state CALLDICT
+        }>ELSE<{
+          s1 s3 s6 XCHG3
+          2DROP
         }>
+        s0 s4 XCHG2
+      }>
+      SWAP
+      IF:<{
+        NEWC
+        s1 21 s() XCHG
+        8 STU
+        22 s() PUSH
+        SWAP
+        256 STU
+        SWAP
+        s0 19 s() XCHG
+        STGRAMS
+        s1 22 s() XCHG
+        32 STU
+        s1 17 s() XCHG
+        STREF
+        s0 s2 XCHG
+        s1 19 s() XCHG
+        s0 s7 XCHG
+        8 PUSHPOW2
+        DICTUSETB
+      }>ELSE<{
+        s2 23 s() XCHG
+        s4 22 s() XCHG
+        s0 20 s() XCHG
+        s3 19 s() XCHG
+        s5 s10 XCHG
+        5 BLKDROP
+      }>
+      s4 PUSH
+      0 EQINT
+      16 s() PUSH
+      AND
+      IF:<{
+        s6 s0 s7 PUSH3
+        lottery_raffle CALLDICT
       }>
       s13 s15 XCHG
       s8 s14 XCHG
-      s0 s13 XCHG
       s4 s12 XCHG
       s3 s11 XCHG
-      s2 s10 XCHG
-      s5 s9 XCHG
-      s8 17 s() XCHG
-      s7 18 s() XCHG
-      s0 s6 XCHG
+      s10 s9 s0 XCHG3
+      s5 s8 XCHG
+      s7 17 s() XCHG
+      s5 s6 XCHG
       s5 18 s() XCHG
-      s4 18 s() XCHG
-      s3 16 s() XCHG
-      s2 17 s() XCHG
-      SWAP
+      s4 17 s() XCHG
+      s1 s3 XCHG
+      s2 16 s() XCHG
+      s1 18 s() XCHG
       ~store_game CALLDICT
-      s1 s2 XCHG
+      s2 s3 XCHG
       pack_state INLINECALLDICT
       c4 POP
     }>
@@ -696,8 +1043,9 @@ PROGRAM{
         COMMIT
         s0 s4 XCHG
         32 LDU
+        32 LDU
         DROP
-        s0 s3 PUSH2
+        s1 s4 PUSH2
         32 PUSHINT
         DICTUGET
         NULLSWAPIFNOT
@@ -705,24 +1053,28 @@ PROGRAM{
         ~load_game_fields CALLDICT
         DROP
         s13 POP
-        s0 18 s() XCHG
-        s12 PUSH
+        19 s() PUSH
+        s13 PUSH
         8 PUSHPOW2
         DICTUGET
         NULLSWAPIFNOT
-        NIP
+        21 s() POP
+        s0 20 s() XCHG
         40 THROWIFNOT
-        s10 PUSH
+        s11 PUSH
         0 EQINT
         IF:<{
-          s7 PUSH
+          s13 POP
+          18 s() POP
+          s6 PUSH
           NOW
           LESS
           38 THROWIFNOT
           ACCEPT
-          s4 s6 PUSH2
+          s3 s5 PUSH2
           LESS
           IF:<{
+            s10 s11 XCHG
             11 BLKDROP
             s6 POP
             s0 s5 XCHG
@@ -733,35 +1085,52 @@ PROGRAM{
             NULLSWAPIFNOT
             2DROP
           }>ELSE<{
-            17 s() PUSH
-            s12 s3 PUSH2
+            s11 s10 s1 PUSH3
             lottery_raffle CALLDICT
             s14 s15 XCHG
             s12 s13 XCHG
             TRUE
             s0 s13 XCHG
-            s11 s12 XCHG
-            s10 s11 XCHG
-            s9 s10 XCHG
-            s8 s9 XCHG
-            s7 s8 XCHG
-            s6 s7 XCHG
-            s5 s6 XCHG
-            s4 s5 XCHG
-            s3 s4 XCHG
-            s1 s3 s0 XCHG3
+            s10 s12 XCHG
+            s9 s11 XCHG
+            s8 s10 XCHG
+            s7 s9 XCHG
+            s6 s8 XCHG
+            s5 s7 XCHG
+            s4 s6 XCHG
+            s3 s5 XCHG
+            s4 s3 s0 XCHG3
+            s2 18 s() XCHG
             s1 18 s() XCHG
             s0 18 s() XCHG
             ~store_game CALLDICT
             s1 s3 XCHG
           }>
         }>ELSE<{
-          s10 s12 XCHG
-          12 BLKDROP
-          s5 POP
-          s0 s4 XCHG
+          s0 s9 XCHG
+          9 BLKDROP
+          s3 POP
+          s4 POP
+          DUP
           64 EQINT
-          DROP
+          IF:<{
+            s0 s8 XCHG
+            ~load_participant CALLDICT
+            NIP
+            s4 POP
+            s3 s11 s(-1) XCPUXC
+            s7 s6 PUXC
+            ~blackjack_apply_move CALLDICT
+            ACCEPT
+            s6 s10 XCHG
+            s2 s4 XCHG2
+            blackjack_check_state CALLDICT
+            IFNOT:<{
+            }>
+          }>ELSE<{
+            s4 s8 XCHG
+            5 BLKDROP
+          }>
           s3 s3 XCHG2
         }>
       }>ELSE<{
