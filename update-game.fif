@@ -19,34 +19,4 @@
 
 // == End of parsing command-line arguments
 
-"ping-query" =:? SaveFile
-true =: BounceFlag
-ContractAddrRaw BounceFlag parse-load-address =: BounceFlag 2=: ContractAddr
-."Contract address = " ContractAddr 2dup .addr cr 6 .Addr cr
-
-// Make a temporary keypair just for this request
-newkeypair
-=: PublicKey
-=: PrivateKey
-
-."Updating a game #" GameId . cr
-
-// Pack the internal message into a request data structure to be signed
-<b
-  SeqNo 32 u,   // seqno
-  -1 32 i,      // valid_until
-  101 32 u,     // op, 101 = update game
-  PublicKey B,
-  GameId 32 u,
-b> =: MessageBody
-
-."Signing message: " MessageBody <s csr. cr
-
-ContractAddr null
-  MessageBody PrivateKey sign-message()
-external-message() =: ExtMessage
-
-."New external message: " ExtMessage <s csr. cr
-ExtMessage 2 boc+>B dup Bx. cr
-SaveFile +".boc" tuck B>file
-."(Saved to file " type .")" cr
+// TODO: implement a off-chain dealer logic

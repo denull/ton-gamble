@@ -1,0 +1,51 @@
+#!/usr/bin/env fift -s
+"gamble-utils.fif" include
+
+{ ."<contract-addr> <seqno> <game-id> <move> [-O <output-boc>]" cr
+  ."Make a move <move> in a game <game-id> of contract with address <contract-addr>"
+  ." and saves it into <output-boc>.boc ('move-query.boc' by default)." cr
+} : usage()
+
+// == Parsing command-line arguments
+
+{
+  "-B" "--bid-filename" 1 { =: BidFile } option-long()
+  "-O" "--output-file" 1 { =: SaveFile } option-long()
+
+  1 { =: ContractAddrRaw } nth-argument()
+  2 { parse-int =: SeqNo } nth-argument()
+} scan-args()
+2 < { show-usage() } if // Checks that there's enough arguments
+
+// == End of parsing command-line arguments
+
+"bid" =:? BidFile
+"move-query" =:? SaveFile
+true =: BounceFlag
+ContractAddrRaw BounceFlag parse-load-address =: BounceFlag 2=: ContractAddr
+."Contract address = " ContractAddr 2dup .addr cr 6 .Addr cr
+
+BidFile +".boc" file>B 32 B| B>boc =: BidBody =: PrivateKey
+PrivateKey priv>pub =: PublicKey
+
+."Creating a move request to an game" cr
+
+// Pack the internal message into a request data structure to be signed
+<b
+  SeqNo 32 u,   // seqno
+  -1 32 i,      // valid_until
+  102 32 u,     // op, 102 = make a move
+  PublicKey B,
+  BidBody ref,
+b> =: MessageBody
+
+."Signing message: " MessageBody <s csr. cr
+
+ContractAddr null
+  MessageBody PrivateKey sign-message()
+external-message() =: ExtMessage
+
+."New external message: " ExtMessage <s csr. cr
+ExtMessage 2 boc+>B dup Bx. cr
+SaveFile +".boc" tuck B>file
+."(Saved to file " type .")" cr

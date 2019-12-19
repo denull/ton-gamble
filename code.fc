@@ -1,3 +1,32 @@
+(cell, ()) ~store_game(cell games, int game_id, int is_game_over, int game_type, int game_flags,
+  int start_time, int end_time, int min_tickets, int max_tickets, int cur_tickets, int ticket_price, int prize_fund,
+  int repeat_count, int repeat_delay, cell prizes, cell participants) {
+  if (is_game_over & (repeat_count == 0)) {
+    ;; Remove game from state
+    games~udict_delete_get?(32, game_id);
+  } else {
+    if (is_game_over) {
+      ;; Decrease repeat count and restart the game
+      repeat_count = repeat_count - 1;
+      var next_start_time = now() + repeat_delay;
+      end_time = next_start_time + (end_time - start_time); ;; Keep duration the same
+      start_time = next_start_time;
+      ;; Reset the participants list
+      participants = new_dict();
+      cur_tickets = 0;
+      prize_fund = 0;
+    }
+    games~udict_set_builder(32, game_id, begin_cell()
+      .store_uint(game_type, 8).store_uint(game_flags, 64)
+      .store_uint(start_time, 32).store_uint(end_time, 32)
+      .store_uint(min_tickets, 32).store_uint(max_tickets, 32).store_uint(cur_tickets, 32)
+      .store_grams(ticket_price).store_grams(prize_fund)
+      .store_uint(repeat_count, 32).store_uint(repeat_delay, 32)
+      .store_dict(prizes).store_dict(participants));
+  }
+  return (games, ());
+}
+
 (slice, (int, int, int, int)) ~load_prize(slice prize) {
   var fields = (prize~load_uint(8), prize~load_uint(64),        ;; prize_type, prize_flags
     prize~load_grams(), prize~load_uint(32)                     ;; fixed_part, fund_percentage_part
@@ -5,12 +34,12 @@
   return (prize, fields);
 }
 
-(slice, (int, int, int, cell)) ~load_participant(slice participant) {
-  var fields = (participant~load_uint(8),                       ;; participant_wc,
-    participant~load_grams(),                                   ;; received_amount
-    participant~load_uint(32),                                  ;; ticket_count
-    participant~load_ref()                                      ;; participant_state
-  );
+(slice, (int, int, int, int, cell)) ~load_participant(slice participant) {
+  var fields = (participant~load_uint(8), participant~load_uint(256),  ;; participant_wc, participant_addr,
+    participant~load_grams(),                                          ;; received_amount
+    participant~load_uint(32),                                         ;; ticket_count
+    participant~load_ref()                                             ;; participant_state
+  );  
   return (participant, fields);
 }
 
@@ -52,13 +81,13 @@
       ;; First, determine if this prize should be given at all (like a jackpot)
       if (rand(0xffffffff) <= per_prize_probability) {
         var tickets = new_dict();
-        var entry_id = -1;
+        var entry_pubkey = -1;
         var total_tickets = 0;
         do { ;; Make a copy of all ticket counts
-          (entry_id, var entry, var f) = entries.udict_get_next?(256, entry_id);
+          (entry_pubkey, var entry, var f) = entries.udict_get_next?(256, entry_pubkey);
           if (f) {
-            var (entry_wc, entry_amount, entry_tickets, entry_state) = entry~load_participant();
-            tickets~udict_set_builder(256, entry_id, begin_cell()
+            var (entry_wc, entry_addr, entry_amount, entry_tickets, entry_state) = entry~load_participant();
+            tickets~udict_set_builder(256, entry_addr, begin_cell()
               .store_uint(entry_wc, 8).store_uint(entry_tickets, 32)
             );
             total_tickets += entry_tickets;
@@ -72,23 +101,23 @@
             ;; Select a random ticket (without this prize yet) using roulette-wheel principle
             var current_index = 0;
             var target_index = rand(total_tickets);
-            var entry_id = -1;
+            var entry_addr = -1;
             do {
-              (entry_id, var entry, var f) = tickets.udict_get_next?(256, entry_id);
+              (entry_addr, var entry, var f) = tickets.udict_get_next?(256, entry_addr);
               if (f) {
                 var (entry_wc, entry_tickets) = (entry~load_uint(8), entry~load_uint(32));
                 if ((target_index >= current_index) & (target_index < current_index + entry_tickets)) {
                   ;; If we're inside the winning sector of the roulette wheel, add this prize to this participant's balance
-                  var (winning_entry, winning_found) = winnings.udict_get?(256, entry_id);
+                  var (winning_entry, winning_found) = winnings.udict_get?(256, entry_addr);
                   var winning_amount = prize_amount;
                   if (winning_found) {
                     winning_entry~skip_bits(8);
                     winning_amount += winning_entry~load_grams();
                   }
-                  winnings~udict_set_builder(256, entry_id, begin_cell()
+                  winnings~udict_set_builder(256, entry_addr, begin_cell()
                     .store_uint(entry_wc, 8).store_grams(winning_amount)
                   );
-                  tickets~udict_set_builder(256, entry_id, begin_cell()
+                  tickets~udict_set_builder(256, entry_addr, begin_cell()
                     .store_uint(entry_wc, 8).store_uint(entry_tickets - 1, 32)
                   );
                   f = false;
@@ -106,12 +135,23 @@
   } until (~ f);
 
   ;; Now actually send all stored winnings
-  var entry_id = -1;
+  var entry_addr = -1;
   do {
-    (entry_id, var entry, var f) = winnings.udict_get_next?(256, entry_id);
+    (entry_addr, var entry, var f) = winnings.udict_get_next?(256, entry_addr);
     if (f) {
       var (entry_wc, winning_total) = (entry~load_uint(8), entry~load_grams());
-      send_money(entry_wc, entry_id, winning_total);
+      send_money(entry_wc, entry_addr, winning_total);
+    }
+  } until (~ f);
+}
+
+() return_tickets(cell participants) impure {
+  var player_pubkey = -1;
+  do {
+    (player_pubkey, var entry, var f) = participants.udict_get_next?(256, player_pubkey);
+    if (f) {
+      var (player_wc, player_addr, received_amount) = (entry~load_uint(8), entry~load_uint(256), entry~load_grams());
+      send_money(player_wc, player_addr, received_amount);
     }
   } until (~ f);
 }
@@ -181,7 +221,7 @@ _ pack_state(int seqno, int owner_pubkey, int reserved_balance, cell games) inli
   int query_id = in_msg~load_uint(64);
   if (op == 100) {
     ;; Join a game
-    var (game_id, ticket_count) = (in_msg~load_uint(32), in_msg~load_uint(32));
+    var (game_id, player_pubkey, ticket_count) = (in_msg~load_uint(32), in_msg~load_uint(256), in_msg~load_uint(32));
     var (game, game_found) = games.udict_get?(32, game_id);
     ifnot (game_found) {
       return send_message_back(src_addr_slice, 0xfffffffe, query_id, op, 36, 0, 64);
@@ -210,13 +250,10 @@ _ pack_state(int seqno, int owner_pubkey, int reserved_balance, cell games) inli
     if (actual_price < ticket_price) { ;; => attached value is not enough to buy tickets
       return send_message_back(src_addr_slice, 0xfffffffe, query_id, op, 49, 0, 64);
     }
-    var (entry, entry_found) = participants.udict_get?(256, src_addr);
-    var (entry_wc, entry_amount, entry_tickets, entry_state) = (src_wc, 0, 0, new_dict());
+    var (entry, entry_found) = participants.udict_get?(256, player_pubkey);
+    var (entry_wc, entry_addr, entry_amount, entry_tickets, entry_state) = (src_wc, src_addr, 0, 0, new_dict());
     if (entry_found) {
-      (entry_wc, entry_amount, entry_tickets, entry_state) = entry~load_participant();
-    }
-    if (entry_wc != src_wc) {
-      return send_message_back(src_addr_slice, 0xfffffffe, query_id, op, 41, 0, 64);
+      (entry_wc, entry_addr, entry_amount, entry_tickets, entry_state) = entry~load_participant();
     }
 
     entry_amount = entry_amount + msg_value;
@@ -225,6 +262,7 @@ _ pack_state(int seqno, int owner_pubkey, int reserved_balance, cell games) inli
     cur_tickets = cur_tickets + ticket_count;
     participants~udict_set_builder(256, src_addr, begin_cell()
       .store_uint(src_wc, 8)
+      .store_uint(src_addr, 256)
       .store_grams(entry_amount)
       .store_uint(entry_tickets, 32)
       .store_ref(entry_state)
@@ -238,28 +276,13 @@ _ pack_state(int seqno, int owner_pubkey, int reserved_balance, cell games) inli
       }
     }
 
-    if (is_game_over & (repeat_count == 0)) {
-      ;; Remove game from state
-      games~udict_delete_get?(32, game_id);
-    } else {
-      if (is_game_over) {
-        ;; Decrease repeat count and restart the game
-        repeat_count = repeat_count - 1;
-        var next_start_time = now() + repeat_delay;
-        end_time = next_start_time + (end_time - start_time); ;; Keep duration the same
-        start_time = next_start_time;
-        ;; Reset the participants list
-        participants = new_dict();
-      }
-      games~udict_set_builder(32, game_id, begin_cell()
-        .store_uint(game_type, 8).store_uint(game_flags, 64)
-        .store_uint(start_time, 32).store_uint(end_time, 32)
-        .store_uint(min_tickets, 32).store_uint(max_tickets, 32).store_uint(cur_tickets, 32)
-        .store_grams(ticket_price).store_grams(prize_fund)
-        .store_uint(repeat_count, 32).store_uint(repeat_delay, 32)
-        .store_dict(prizes).store_dict(participants));
-    }
-
+    games~store_game(game_id, is_game_over,
+      game_type, game_flags, 
+      start_time, end_time, 
+      min_tickets, max_tickets, cur_tickets,
+      ticket_price, prize_fund,
+      repeat_count, repeat_delay,
+      prizes, participants);
     set_data(pack_state(stored_seqno, owner_pubkey, reserved_balance, games));
     return ();
   }
@@ -287,7 +310,10 @@ _ pack_state(int seqno, int owner_pubkey, int reserved_balance, cell games) inli
     ;; Make a move in a game
     var current_pubkey = cs~load_uint(256);
     throw_unless(35, check_signature(slice_hash(in_msg), signature, current_pubkey));
-    var (game_id, current_wc, current_addr, action) = (cs~load_uint(32), cs~load_uint(8), cs~load_uint(256), cs~load_uint(32));
+    set_data(pack_state(stored_seqno, owner_pubkey, reserved_balance, games));
+    commit();
+
+    var (game_id, action) = (cs~load_uint(32), cs~load_uint(32));
     var (game, game_found) = games.udict_get?(32, game_id);
     throw_unless(36, game_found);
 
@@ -297,14 +323,34 @@ _ pack_state(int seqno, int owner_pubkey, int reserved_balance, cell games) inli
       ticket_price, prize_fund, repeat_count, repeat_delay,
       prizes, participants, game_state
     ) = game~load_game_fields();
+
+    var (entry, entry_found) = participants.udict_get?(256, current_pubkey);
+    throw_unless(40, entry_found); ;; this is not a participant of that game
     
-    ;; TODO make a move
     if (game_type == 0) {
       ;; Ping a lottery game
+      throw_unless(38, end_time < now()); ;; not yet finished
+      accept_message();
 
+      if (cur_tickets < min_tickets) {
+        ;; Not enough tickets sold, return all tickets
+        return_tickets(participants);
+        games~udict_delete_get?(32, game_id);
+      } else {
+        ;; Perform lottery
+        lottery_raffle(prizes, participants, prize_fund);
+        games~store_game(game_id, true,
+          game_type, game_flags, 
+          start_time, end_time, 
+          min_tickets, max_tickets, cur_tickets,
+          ticket_price, prize_fund,
+          repeat_count, repeat_delay,
+          prizes, participants);
+      }
     } elseif (game_type == 64) {
       ;; Blackjack: hit/stand
 
+      ;; var (entry_wc, entry_addr, entry_amount, entry_tickets, entry_state) = entry~load_participant();
     }
   } else {
     throw_unless(34, check_signature(slice_hash(in_msg), signature, owner_pubkey));
@@ -344,17 +390,7 @@ _ pack_state(int seqno, int owner_pubkey, int reserved_balance, cell games) inli
         ticket_price, prize_fund, repeat_count, repeat_delay,
         prizes, participants, game_state
       ) = game~load_game_fields();
-
-      var player_addr = -1;
-      do {
-        (player_addr, var entry, var f) = participants.udict_get_next?(256, player_addr);
-        if (f) {
-          var wc = entry~load_uint(8);
-          var received_amount = entry~load_grams();
-          reserved_balance = reserved_balance - received_amount;
-          send_money(wc, player_addr, received_amount);
-        }
-      } until (~ f);
+      return_tickets(participants);
       games~udict_delete_get?(32, game_id);
     }
   }
