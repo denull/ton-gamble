@@ -2,8 +2,7 @@
 "gamble-utils.fif" include
 
 { ."<workchain-id> [<filename-base>] [-C <code-fif>]" cr
-  ."Creates a new game contract, with private key saved to or loaded from <filename-base>.pk" cr
-  ."('gamble.pk' by default)." cr
+  ."Creates a new game contract, with private key saved to or loaded from <filename-base>.pk ('gamble.pk' by default)." cr
   ."By default uses the full code of the contract. If you want to use stripped-down version (without get-methods), pass 'code' as last argument."
 } : usage()
 
@@ -13,8 +12,7 @@
   "-C" "--code-file" 1 { +".fif" include =: ContractCode } option-long()
 
   1 { parse-workchain-id =: WorkchainId } nth-argument()
-  2 { =: NotificationAddrRaw } nth-argument()
-  3 { =: FileBase } nth-argument()
+  2 { =: FileBase } nth-argument()
   no-more-arguments() // Prevents adding too much arguments
 } scan-args()
 
@@ -25,8 +23,6 @@
 // Default values
 "gamble" =:? FileBase
 "code-getters.fif" include =:? ContractCode
-
-NotificationAddrRaw true parse-load-address =: BounceFlag 2=: NotificationAddr
 
 // == End of parsing command-line arguments
 

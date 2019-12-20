@@ -1,6 +1,6 @@
 (cell, ()) ~store_game(cell games, int game_id, int is_game_over, int game_type, int game_flags,
   int start_time, int end_time, int min_tickets, int max_tickets, int cur_tickets, int ticket_price, int prize_fund,
-  int repeat_count, int repeat_delay, cell prizes, cell participants) {
+  int repeat_count, int repeat_delay, cell prizes, cell participants, cell state) {
   if (is_game_over & (repeat_count == 0)) {
     ;; Remove game from state
     games~udict_delete_get?(32, game_id);
@@ -22,7 +22,7 @@
       .store_uint(min_tickets, 32).store_uint(max_tickets, 32).store_uint(cur_tickets, 32)
       .store_grams(ticket_price).store_grams(prize_fund)
       .store_uint(repeat_count, 32).store_uint(repeat_delay, 32)
-      .store_dict(prizes).store_dict(participants));
+      .store_dict(prizes).store_dict(participants).store_dict(state));
   }
   return (games, ());
 }
@@ -53,7 +53,7 @@
   var fields = (participant~load_uint(8), participant~load_uint(256),  ;; participant_wc, participant_addr,
     participant~load_grams(),                                          ;; received_amount
     participant~load_uint(32),                                         ;; ticket_count
-    participant~load_ref()                                             ;; participant_state
+    participant~load_dict()                                            ;; participant_state
   );  
   return (participant, fields);
 }
@@ -143,7 +143,7 @@
       var (prize_type, prize_flags, fixed_part, fund_percentage_part) = prize~load_prize();
 
       ;; Calculate actual prize size (some fixed part + predefined percentage of the total prize fund)
-      var prize_amount = fixed_part + player_bid * fund_percentage_part / 0xffffffff;
+      var prize_amount = fixed_part + player_bid * fund_percentage_part / 4294967200;
 
       ;; Send the prize to the player
       send_money(player_wc, player_addr, prize_amount);
@@ -200,10 +200,10 @@
       ) = prize~load_random_prize();
 
       ;; Calculate actual prize size (some fixed part + predefined percentage of the total prize fund)
-      var prize_amount = fixed_part + prize_fund * fund_percentage_part / 0xffffffff;
+      var prize_amount = fixed_part + prize_fund * fund_percentage_part / 4294967200;
       
       ;; First, determine if this prize should be given at all (like a jackpot)
-      if (rand(0xffffffff) <= per_prize_probability) {
+      if (rand(4294967200) <= per_prize_probability) {
         var tickets = new_dict();
         var entry_pubkey = -1;
         var total_tickets = 0;
@@ -221,7 +221,7 @@
         ;; Repeatedly give out this prize (if there's enough tickets left)
         while (total_tickets & (ticket_count > 0)) {
           ;; Now check if this instance of this prize should be given out
-          if (rand(0xffffffff) <= per_ticket_probability) {
+          if (rand(4294967200) <= per_ticket_probability) {
             ;; Select a random ticket (without this prize yet) using roulette-wheel principle
             var current_index = 0;
             var target_index = rand(total_tickets);
@@ -304,7 +304,7 @@
     game~load_uint(32), game~load_uint(32), game~load_uint(32), ;; min_tickets, max_tickets, cur_tickets
     game~load_grams(), game~load_grams(),                       ;; ticket_price, prize_fund
     game~load_uint(32), game~load_uint(32),                     ;; repeat_count, repeat_delay
-    game~load_dict(), game~load_dict(), game~load_ref()         ;; prizes, participants, game_state
+    game~load_dict(), game~load_dict(), game~load_dict()        ;; prizes, participants, game_state
   );
   return (game, fields);
 }
@@ -398,12 +398,12 @@ _ pack_state(int seqno, int owner_pubkey, int reserved_balance, cell games) inli
     }
 
     if (is_in_game) {
-      participants~udict_set_builder(256, src_addr, begin_cell()
+      participants~udict_set_builder(256, player_pubkey, begin_cell()
         .store_uint(src_wc, 8)
         .store_uint(src_addr, 256)
         .store_grams(entry_amount)
         .store_uint(entry_tickets, 32)
-        .store_ref(entry_state)
+        .store_dict(entry_state)
       );
     }
 
@@ -418,7 +418,7 @@ _ pack_state(int seqno, int owner_pubkey, int reserved_balance, cell games) inli
       min_tickets, max_tickets, cur_tickets,
       ticket_price, prize_fund,
       repeat_count, repeat_delay,
-      prizes, participants);
+      prizes, participants, game_state);
     set_data(pack_state(stored_seqno, owner_pubkey, reserved_balance, games));
     return ();
   }
@@ -481,7 +481,7 @@ _ pack_state(int seqno, int owner_pubkey, int reserved_balance, cell games) inli
           min_tickets, max_tickets, cur_tickets,
           ticket_price, prize_fund,
           repeat_count, repeat_delay,
-          prizes, participants);
+          prizes, participants, game_state);
       }
     } elseif (game_type == 64) {
       ;; Blackjack: hit/stand
@@ -489,7 +489,15 @@ _ pack_state(int seqno, int owner_pubkey, int reserved_balance, cell games) inli
       entry_state~blackjack_apply_move(game_type, game_flags, action); ;; can throw
       accept_message();
       var is_in_game = blackjack_check_state(game_type, game_flags, entry_state, prizes, entry_wc, entry_addr, entry_amount);
-      ifnot (is_in_game) {
+      if (is_in_game) {
+        participants~udict_set_builder(256, current_pubkey, begin_cell()
+          .store_uint(entry_wc, 8)
+          .store_uint(entry_addr, 256)
+          .store_grams(entry_amount)
+          .store_uint(entry_tickets, 32)
+          .store_dict(entry_state)
+        );
+      } else {
         participants~udict_delete_get?(256, current_pubkey);
       }
     }

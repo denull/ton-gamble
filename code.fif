@@ -21,62 +21,63 @@ PROGRAM{
   DECLPROC recv_external
   85143 DECLMETHOD seqno
   ~store_game PROC:<{
-    s3 PUSH
+    s4 PUSH
     0 EQINT
-    s14 s(-1) PUXC
+    s15 s(-1) PUXC
     AND
     IF:<{
       12 BLKDROP
-      2DROP
+      3 BLKDROP
       SWAP
       32 PUSHINT
       DICTUDELGET
       NULLSWAPIFNOT
       2DROP
     }>ELSE<{
-      s0 s13 XCHG
+      s0 s14 XCHG
       IF:<{
+        DROP
         s3 POP
         s4 POP
-        s10 POP
-        s0 s9 XCHG
         DEC
         NOW
-        s3 PUSH
+        s4 PUSH
         ADD
-        s6 s7 XCHG2
+        s7 s8 XCHG2
         SUB
-        s6 s(-1) PUXC
+        s7 s(-1) PUXC
         ADD
         NEWDICT
         0 PUSHINT
         DUP
       }>ELSE<{
-        s8 s5 s12 XCHG3
-        s0 s1 s3 XCHG3
+        s3 s9 XCHG
+        s0 s4 s6 XCHG3
+        SWAP
       }>
       NEWC
-      s1 s12 XCHG
+      s1 s13 XCHG
       8 STU
-      s1 s10 XCHG
+      s1 s11 XCHG
       64 STU
-      s1 s8 XCHG
+      s1 s9 XCHG
       32 STU
-      32 STU
-      s1 s4 XCHG
-      32 STU
-      s1 s2 XCHG
       32 STU
       s1 s5 XCHG
       32 STU
-      SWAP
-      STGRAMS
-      s0 s4 XCHG2
-      STGRAMS
       s1 s3 XCHG
       32 STU
+      s1 s6 XCHG
+      32 STU
+      SWAP
+      STGRAMS
+      s0 s5 XCHG2
+      STGRAMS
       32 STU
       s1 s2 XCHG
+      32 STU
+      s1 s2 XCHG
+      STDICT
       STDICT
       STDICT
       s0 s2 XCHG
@@ -137,7 +138,7 @@ PROGRAM{
     256 LDU
     LDGRAMS
     32 LDU
-    LDREF
+    LDDICT
     5 -ROLL
   }>
   ~load_random_prize PROC:<{
@@ -303,7 +304,7 @@ PROGRAM{
           s2 POP
           s3 s3 XCHG2
           MUL
-          32 PUSHPOW2DEC
+          4294967200 PUSHINT
           DIV
           s1 s2 XCHG
           ADD
@@ -420,10 +421,10 @@ PROGRAM{
         s5 POP
         s8 s(-1) PUXC
         MUL
-        32 PUSHPOW2DEC
+        4294967200 PUSHINT
         DIV
         ADD
-        32 PUSHPOW2DEC
+        4294967200 PUSHINT
         RAND
         s0 s4 XCHG2
         LEQ
@@ -468,7 +469,7 @@ PROGRAM{
             s1 s(-1) PUXC
             AND
           }>DO<{
-            32 PUSHPOW2DEC
+            4294967200 PUSHINT
             RAND
             s3 PUSH
             LEQ
@@ -665,7 +666,7 @@ PROGRAM{
     32 LDU
     LDDICT
     LDDICT
-    LDREF
+    LDDICT
     s0 s14 XCHG
     s0 s13 XCHG
     12 -ROLL
@@ -745,15 +746,14 @@ PROGRAM{
         send_message_back CALLDICT
       }>
       ~load_game_fields CALLDICT
-      DROP
-      s13 POP
-      s9 PUSH
+      s14 POP
+      s10 PUSH
       NOW
       LESS
       IFNOTJMP:<{
         12 BLKDROP
-        s4 s8 XCHG
-        8 BLKDROP
+        s5 s9 XCHG
+        9 BLKDROP
         s2 POP
         s3 POP
         s3 POP
@@ -765,13 +765,13 @@ PROGRAM{
         64 PUSHINT
         send_message_back CALLDICT
       }>
-      s8 PUSH
+      s9 PUSH
       NOW
       GREATER
       IFNOTJMP:<{
         12 BLKDROP
-        s4 s8 XCHG
-        8 BLKDROP
+        s5 s9 XCHG
+        9 BLKDROP
         s2 POP
         s3 POP
         s3 POP
@@ -783,23 +783,23 @@ PROGRAM{
         64 PUSHINT
         send_message_back CALLDICT
       }>
-      s5 s13 PUSH2
+      s6 s14 PUSH2
       ADD
-      s7 PUSH
+      s8 PUSH
       GREATER
       IF:<{
-        s13 POP
-        s5 s4 PUSH2
+        s14 POP
+        s6 s5 PUSH2
         SUB
       }>ELSE<{
-        s0 s13 XCHG
+        s0 s14 XCHG
       }>
       DUP
       1 LESSINT
       IFJMP:<{
         12 BLKDROP
-        s4 s8 XCHG
-        8 BLKDROP
+        s5 s9 XCHG
+        9 BLKDROP
         s2 POP
         s3 POP
         s3 POP
@@ -811,15 +811,15 @@ PROGRAM{
         64 PUSHINT
         send_message_back CALLDICT
       }>
-      25 s() PUSH
+      26 s() PUSH
       OVER
       DIV
-      s5 PUSH
+      s6 PUSH
       LESS
       IFJMP:<{
         12 BLKDROP
-        s4 s8 XCHG
-        8 BLKDROP
+        s5 s9 XCHG
+        9 BLKDROP
         s2 POP
         s3 POP
         s3 POP
@@ -831,18 +831,18 @@ PROGRAM{
         64 PUSHINT
         send_message_back CALLDICT
       }>
-      s14 s12 XCPU
+      s15 s14 PUSH2
       8 PUSHPOW2
       DICTUGET
       NULLSWAPIFNOT
-      s12 PUSH
+      s14 PUSH
       63 GTINT
       s1 s(-1) PUXC
       AND
       IFJMP:<{
         12 BLKDROP
-        s5 s9 XCHG
-        9 BLKDROP
+        s7 s11 XCHG
+        11 BLKDROP
         s2 POP
         s3 POP
         s3 POP
@@ -854,117 +854,115 @@ PROGRAM{
         64 PUSHINT
         send_message_back CALLDICT
       }>
-      17 s() POP
-      21 s() POP
-      22 s() POP
+      19 s() POP
+      23 s() POP
+      24 s() POP
       0 PUSHINT
-      s0 s10 s9 PUSH3
+      s0 s12 s11 PUSH3
       get_initial_state CALLDICT
-      23 s() PUSH
-      26 s() PUSH
-      s0 19 s() XCHG
+      25 s() PUSH
+      28 s() PUSH
+      s0 21 s() XCHG
       IF:<{
         4 BLKDROP
-        s14 POP
-        s0 18 s() XCHG
+        16 s() POP
+        s0 20 s() XCHG
         ~load_participant CALLDICT
         s5 POP
       }>ELSE<{
-        s5 23 s() XCHG
-        s4 18 s() XCHG
+        s5 25 s() XCHG
+        s4 20 s() XCHG
         s5 s4 XCHG2
         3 -ROLL
         DROP
       }>
       SWAP
+      28 s() PUSH
+      ADD
+      SWAP
       26 s() PUSH
       ADD
-      s1 s15 XCPU
+      s1 s6 XCHG
+      s0 28 s() XCHG
       ADD
-      s1 22 s() XCHG
-      s0 26 s() XCHG
-      ADD
-      s5 s14 XCHG2
+      s1 s7 XCHG
+      s0 25 s() XCHG
       ADD
       TRUE
       FALSE
-      s12 PUSH
+      s14 PUSH
       0 EQINT
       IF:<{
         DROP
         s2 POP
-        s4 POP
-        s3 s4 PUSH2
+        s6 POP
+        s5 s6 PUSH2
         GEQ
       }>ELSE<{
-        s12 PUSH
+        s14 PUSH
         64 EQINT
         IF:<{
           NIP
-          s11 s(-1) s0 PUXC2
-          s11 s(-1) s0 PUXC2
+          s13 s(-1) s0 PUXC2
+          s13 s(-1) s0 PUXC2
           s5 s(-1) s0 PUXC2
-          16 s() PUSH
-          s0 s6 s9 XCHG3
-          25 s() PUSH
+          21 s() PUSH
+          s0 s6 s11 XCHG3
+          s9 PUSH
           blackjack_check_state CALLDICT
         }>ELSE<{
-          s1 s3 s6 XCHG3
+          s1 s3 s8 XCHG3
           2DROP
         }>
-        s0 s4 XCHG2
+        s0 s6 XCHG2
       }>
       SWAP
       IF:<{
         NEWC
-        s1 21 s() XCHG
+        s1 23 s() XCHG
         8 STU
-        22 s() PUSH
-        SWAP
+        s1 24 s() XCHG
         256 STU
-        SWAP
-        s0 19 s() XCHG
+        ROT
         STGRAMS
-        s1 22 s() XCHG
+        s1 23 s() XCHG
         32 STU
-        s1 17 s() XCHG
-        STREF
-        s0 s2 XCHG
-        s1 19 s() XCHG
-        s0 s7 XCHG
+        s1 21 s() XCHG
+        STDICT
+        s0 s10 s9 XCHG3
         8 PUSHPOW2
         DICTUSETB
       }>ELSE<{
-        s2 23 s() XCHG
-        s4 22 s() XCHG
-        s0 20 s() XCHG
-        s3 19 s() XCHG
-        s5 s10 XCHG
-        5 BLKDROP
+        s2 25 s() XCHG
+        s4 24 s() XCHG
+        s0 22 s() XCHG
+        s5 s14 XCHG
+        s6 s13 XCHG
+        6 BLKDROP
       }>
-      s4 PUSH
+      s5 PUSH
       0 EQINT
-      16 s() PUSH
+      17 s() PUSH
       AND
       IF:<{
-        s6 s0 s7 PUSH3
+        s10 s0 PUSH2
+        19 s() PUSH
         lottery_raffle CALLDICT
       }>
-      s13 s15 XCHG
-      s8 s14 XCHG
+      s14 16 s() XCHG
+      s9 s15 XCHG
+      s5 s13 XCHG
       s4 s12 XCHG
       s3 s11 XCHG
       s10 s9 s0 XCHG3
-      s5 s8 XCHG
-      s7 17 s() XCHG
-      s5 s6 XCHG
-      s5 18 s() XCHG
-      s4 17 s() XCHG
-      s1 s3 XCHG
-      s2 16 s() XCHG
-      s1 18 s() XCHG
+      s7 s8 XCHG
+      s6 18 s() XCHG
+      s5 17 s() XCHG
+      s4 19 s() XCHG
+      s0 s3 XCHG2
+      s0 18 s() XCHG
       ~store_game CALLDICT
-      s2 s3 XCHG
+      s3 s3 s0 XCHG3
       pack_state INLINECALLDICT
       c4 POP
     }>
@@ -1033,31 +1031,29 @@ PROGRAM{
         NULLSWAPIFNOT
         36 THROWIFNOT
         ~load_game_fields CALLDICT
-        DROP
-        s13 POP
-        19 s() PUSH
-        s13 PUSH
+        s14 POP
+        20 s() PUSH
+        OVER
         8 PUSHPOW2
         DICTUGET
         NULLSWAPIFNOT
-        21 s() POP
-        s0 20 s() XCHG
+        22 s() POP
+        s0 21 s() XCHG
         40 THROWIFNOT
-        s11 PUSH
+        s12 PUSH
         0 EQINT
         IF:<{
-          s13 POP
-          18 s() POP
-          s6 PUSH
+          s14 POP
+          19 s() POP
+          s7 PUSH
           NOW
           LESS
           38 THROWIFNOT
           ACCEPT
-          s3 s5 PUSH2
+          s4 s6 PUSH2
           LESS
           IF:<{
-            s10 s11 XCHG
-            11 BLKDROP
+            12 BLKDROP
             s6 POP
             s0 s5 XCHG
             return_tickets CALLDICT
@@ -1067,12 +1063,14 @@ PROGRAM{
             NULLSWAPIFNOT
             2DROP
           }>ELSE<{
-            s11 s10 s1 PUSH3
+            18 s() PUSH
+            s13 s3 PUSH2
             lottery_raffle CALLDICT
-            s14 s15 XCHG
-            s12 s13 XCHG
+            s15 16 s() XCHG
+            s13 s14 XCHG
             TRUE
-            s0 s13 XCHG
+            s0 s14 XCHG
+            s11 s13 XCHG
             s10 s12 XCHG
             s9 s11 XCHG
             s8 s10 XCHG
@@ -1082,15 +1080,14 @@ PROGRAM{
             s4 s6 XCHG
             s3 s5 XCHG
             s4 s3 s0 XCHG3
-            s2 18 s() XCHG
-            s1 18 s() XCHG
-            s0 18 s() XCHG
+            s2 19 s() XCHG
+            s0 19 s() XCHG
             ~store_game CALLDICT
             s1 s3 XCHG
           }>
         }>ELSE<{
-          s0 s9 XCHG
-          9 BLKDROP
+          s1 s10 XCHG
+          10 BLKDROP
           s3 POP
           s4 POP
           DUP
@@ -1104,10 +1101,16 @@ PROGRAM{
             s7 s6 PUXC
             ~blackjack_apply_move CALLDICT
             ACCEPT
-            s6 s10 XCHG
-            s2 s4 XCHG2
+            s10 s5 s0 XCHG3
+            s0 s3 PUXC
+            s6 s11 s5 PUSH3
             blackjack_check_state CALLDICT
-            IFNOT:<{
+            s0 s3 XCHG
+            3 BLKDROP
+            s5 POP
+            s0 s4 XCHG
+            IF:<{
+            }>ELSE<{
             }>
           }>ELSE<{
             s4 s8 XCHG
