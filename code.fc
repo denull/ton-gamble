@@ -541,6 +541,14 @@ _ pack_state(int seqno, int owner_pubkey, int reserved_balance, cell games) inli
       ) = game~load_game_fields();
       return_tickets(participants);
       games~udict_delete_get?(32, game_id);
+    } elseif (op == 4) {
+      ;; Upgrade contract's code
+      var code = cs~load_ref();
+      set_code(code);
+      ifnot(cs.slice_empty?()) {
+        set_c3(code.begin_parse().bless());
+      }
+      throw(0);
     }
   }
   set_data(pack_state(stored_seqno, owner_pubkey, reserved_balance, games));

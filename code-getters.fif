@@ -1185,9 +1185,10 @@ PROGRAM{
             32 PUSHINT
             DICTUSET
           }>ELSE<{
-            SWAP
+            OVER
             3 EQINT
             IF:<{
+              NIP
               SWAP
               32 LDU
               DROP
@@ -1208,8 +1209,26 @@ PROGRAM{
               NULLSWAPIFNOT
               2DROP
             }>ELSE<{
-              -ROT
-              DROP
+              SWAP
+              4 EQINT
+              IF:<{
+                SWAP
+                LDREF
+                OVER
+                SETCODE
+                SEMPTY
+                IFNOT:<{
+                  CTOS
+                  BLESS
+                  c3 POP
+                }>ELSE<{
+                  DROP
+                }>
+                0 THROW
+              }>ELSE<{
+                NIP
+              }>
+              SWAP
             }>
           }>
           SWAP

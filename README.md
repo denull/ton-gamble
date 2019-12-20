@@ -98,6 +98,11 @@ This script is used to generate an initialisation message for your contract. It 
 
 At any moment, the owner of the contract can withdraw any amount of Grams stored in it, if the remaining balance of enough to pay back all current bids.
 
+## Upgrading contract's code
+`./upgrade-code.fif <contract> <seqno> [-C <code-fif>] [-O <output-boc>]`
+
+Use this request to update your contract's code. By default it uses code from `code-getters.fif`, but you can pass any file via `-C` option.
+
 ## Inspecting cotract's state
 `./show-state.fif <data-boc>`
 

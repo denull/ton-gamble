@@ -1,0 +1,54 @@
+#!/usr/bin/env fift -s
+"gamble-utils.fif" include
+
+{ ."<contract> <seqno> [-C <code-fif>] [-O <output-boc>]" cr
+  ."Upgrades contract's code, with address loaded from file <contract>.addr "
+  ."and private key from <contract>.pk, and saves it into <output-boc>.boc ('<contract>-query.boc' by default)." cr
+} : usage()
+
+// == Parsing command-line arguments
+
+{
+  "-C" "--code-file" 1 { +".fif" =: ContractCodeName } option-long()
+  "-O" "--output-file" 1 { =: SaveFile } option-long()
+
+  1 { =: BaseFile } nth-argument()
+  2 { parse-int =: SeqNo } nth-argument()
+} scan-args()
+2 < { show-usage() } if // Checks that there's enough arguments
+
+// == End of parsing command-line arguments
+
+"code-getters.fif" =:? ContractCodeName
+
+BaseFile +"-query" =:? SaveFile
+BaseFile +".addr" load-address
+2dup 2constant ContractAddr
+."Contract address = " 2dup .addr cr 6 .Addr cr
+
+BaseFile +".pk" load-keypair
+=: PrivateKey
+=: PublicKey
+
+."Loading new code from " ContractCodeName type cr
+ContractCodeName include =: ContractCode
+ContractCode <s csr. cr
+
+// Pack the internal message into a request data structure to be signed
+<b
+  SeqNo 32 u,       // seqno
+  -1 32 i,          // valid_until
+  4 32 u,           // action, 4 = upgrade code
+  ContractCode ref, // code
+b> =: MessageBody
+
+."Signing message: " MessageBody <s csr. cr
+
+ContractAddr null
+  MessageBody PrivateKey sign-message()
+external-message() =: ExtMessage
+
+."New external message: " ExtMessage <s csr. cr
+ExtMessage 2 boc+>B dup Bx. cr
+SaveFile +".boc" tuck B>file
+."(Saved to file " type .")" cr
