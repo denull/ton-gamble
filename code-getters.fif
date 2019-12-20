@@ -21,10 +21,10 @@ PROGRAM{
   DECLPROC recv_external
   85143 DECLMETHOD seqno
   77822 DECLMETHOD owner_pubkey
-  78650 DECLMETHOD notification_addr
   116643 DECLMETHOD reserved_amount
   78463 DECLMETHOD games
-  104366 DECLMETHOD bidders
+  70622 DECLMETHOD prizes
+  70745 DECLMETHOD participants
   ~store_game PROC:<{
     s4 PUSH
     0 EQINT
@@ -1238,19 +1238,10 @@ PROGRAM{
     256 LDU
     DROP
   }>
-  notification_addr PROC:<{
-    c4 PUSH
-    CTOS
-    288 PUSHINT
-    SDSKIPFIRST
-    264 PUSHINT
-    LDSLICEX
-    DROP
-  }>
   reserved_amount PROC:<{
     c4 PUSH
     CTOS
-    552 PUSHINT
+    288 PUSHINT
     SDSKIPFIRST
     LDGRAMS
     DROP
@@ -1258,7 +1249,7 @@ PROGRAM{
   games PROC:<{
     c4 PUSH
     CTOS
-    552 PUSHINT
+    288 PUSHINT
     SDSKIPFIRST
     LDGRAMS
     NIP
@@ -1281,30 +1272,11 @@ PROGRAM{
       DUP
       IF:<{
         s0 s2 XCHG
-        8 LDU
-        32 LDU
-        32 LDU
-        LDGRAMS
-        LDGRAMS
-        LDGRAMS
-        0 PUSHINT
-        s0 s0 s7 PUSH3
-        64 LESSINT
-        IF:<{
-          s2 POP
-          s0 s2 XCHG
-          LDGRAMS
-          DROP
-        }>ELSE<{
-          2DROP
-          SWAP
-          32 LDU
-          LDGRAMS
-          DROP
-          ROT
-        }>
-        -ROT
-        9 TUPLE
+        ~load_game_fields CALLDICT
+        3 BLKDROP
+        s11 POP
+        10 ROLL
+        11 TUPLE
         s0 s3 XCHG2
         CONS
       }>ELSE<{
@@ -1318,10 +1290,10 @@ PROGRAM{
     DROP
     NIP
   }>
-  bidders PROC:<{
+  prizes PROC:<{
     c4 PUSH
     CTOS
-    552 PUSHINT
+    288 PUSHINT
     SDSKIPFIRST
     LDGRAMS
     NIP
@@ -1337,50 +1309,79 @@ PROGRAM{
     DICTUGET
     NULLSWAPIFNOT
     36 THROWIFNOT
-    8 LDU
-    32 LDU
-    NIP
-    32 LDU
-    NIP
-    LDGRAMS
-    NIP
-    LDGRAMS
-    NIP
-    LDGRAMS
-    NIP
+    ~load_game_fields CALLDICT
+    s2 s12 XCHG
+    12 BLKDROP
+    s2 POP
     PUSHNULL
-    s0 s2 XCHG
-    64 LESSINT
-    IFJMP:<{
-      LDGRAMS
-      NIP
-      LDGRAMS
-      OVER
-      0 NEQINT
+    31 PUSHPOW2DEC
+    UNTIL:<{
+      s3 PUSH
+      32 PUSHINT
+      DICTUGETPREV
+      NULLSWAPIFNOT
+      NULLSWAPIFNOT
+      DUP
       IF:<{
-        264 PUSHINT
-        LDSLICEX
-        DROP
-        8 LDU
-        256 LDU
-        DROP
-        s0 s2 s0 XC2PU
-        4 TUPLE
-        SWAP
+        0 PUSHINT
+        s0 s0 s5 PUSH3
+        64 LESSINT
+        IF:<{
+          3 BLKDROP
+          s0 s2 XCHG
+          ~load_random_prize CALLDICT
+          s7 POP
+        }>ELSE<{
+          s0 s5 XCHG
+          ~load_prize CALLDICT
+          s4 POP
+          s6 s8 XCHG
+          3 3 BLKSWAP
+          -ROT
+        }>
+        6 ROLL
+        7 TUPLE
+        s0 s3 XCHG2
         CONS
       }>ELSE<{
-        2DROP
+        2SWAP
+        DROP
       }>
+      SWAP
+      NOT
+      s1 s2 XCHG
     }>
-    32 LDU
-    NIP
+    s1 s3 XCHG
+    3 BLKDROP
+  }>
+  participants PROC:<{
+    c4 PUSH
+    CTOS
+    288 PUSHINT
+    SDSKIPFIRST
     LDGRAMS
     NIP
     LDDICT
     DROP
+    DUP
+    ISNULL
+    IFJMP:<{
+      2DROP
+      PUSHNULL
+    }>
+    32 PUSHINT
+    DICTUGET
+    NULLSWAPIFNOT
+    36 THROWIFNOT
+    ~load_game_fields CALLDICT
+    s1 s12 XCHG
+    12 BLKDROP
+    NIP
+    NIP
+    PUSHNULL
     256 PUSHPOW2DEC
     UNTIL:<{
-      OVER
+      s2 PUSH
       8 PUSHPOW2
       DICTUGETPREV
       NULLSWAPIFNOT
@@ -1388,34 +1389,23 @@ PROGRAM{
       DUP
       IF:<{
         s0 s2 XCHG
-        32 LDU
-        LDGRAMS
-        0 PUSHINT
-        SWAP
-        9 PUSHPOW2
-        LDSLICEX
-        NIP
-        DUP
-        SDEMPTY
-        IFNOT:<{
-          NIP
-          LDGRAMS
-          DROP
-        }>ELSE<{
-          DROP
-        }>
-        s3 s(-1) s(-1) PUXC2
-        4 TUPLE
-        s0 s4 XCHG2
+        ~load_participant CALLDICT
+        DROP
+        s4 POP
+        s4 PUSH
+        s0 s4 XCHG
+        5 TUPLE
+        s0 s3 XCHG2
         CONS
       }>ELSE<{
-        s4 s2 XCHG2
+        2SWAP
         DROP
       }>
       SWAP
       NOT
-      s1 s3 XCHG
+      s1 s2 XCHG
     }>
-    2DROP
+    DROP
+    NIP
   }>
 }END>c

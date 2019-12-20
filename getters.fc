@@ -1,11 +1,16 @@
 ;; These are useful methods, however they take precious bytes of storage.
 ;; It's still possible to call them w/o uploading to TON.
 
-tuple game_tuple(int game_type, int start_time, int end_time, int bidding_fee, int initial_price, int buyout_price, int minimum_step, int decrypt_time, int fixed_amount)
-  asm(game_type start_time end_time bidding_fee initial_price buyout_price minimum_step decrypt_time fixed_amount) "9 TUPLE";
+tuple game_tuple(int game_type, int game_flags, int start_time, int end_time,
+    int min_tickets, int max_tickets, int cur_tickets,
+    int ticket_price, int prize_fund, int repeat_count, int repeat_delay)
+  asm(game_type game_flags start_time end_time min_tickets max_tickets cur_tickets ticket_price prize_fund repeat_count repeat_delay) "11 TUPLE";
 
-tuple bid_tuple(int bidder_wc, int bidder_addr, int received_amount, int actual_amount)
-  asm(bidder_wc bidder_addr received_amount actual_amount) "4 TUPLE";
+tuple participant_tuple(int player_pubkey, int entry_wc, int entry_addr, int entry_amount, int entry_tickets)
+  asm(player_pubkey entry_wc entry_addr entry_amount entry_tickets) "5 TUPLE";
+
+tuple prize_tuple(int prize_type, int prize_flags, int fixed_part, int fund_percentage_part, int per_prize_probability, int ticket_count, int per_ticket_probability)
+  asm(prize_type prize_flags fixed_part fund_percentage_part per_prize_probability ticket_count per_ticket_probability) "7 TUPLE";
 
 ;; Returns owner's pubkey
 
@@ -14,24 +19,17 @@ int owner_pubkey() method_id {
   return ds~load_uint(256);
 }
 
-;; Returns notification addr
-
-slice notification_addr() method_id {
-  var ds = get_data().begin_parse().skip_bits(32 + 256);
-  return ds~load_bits(8 + 256);
-}
-
 ;; Returns reserved amount
 
 int reserved_amount() method_id {
-  var ds = get_data().begin_parse().skip_bits(32 + 256 + 8 + 256);
+  var ds = get_data().begin_parse().skip_bits(32 + 256);
   return ds~load_grams();
 }
 
 ;; Returns list of all active games
 
 _ games() method_id {
-  var ds = get_data().begin_parse().skip_bits(32 + 256 + 8 + 256);
+  var ds = get_data().begin_parse().skip_bits(32 + 256);
   ds~load_grams();
   var games = ds~load_dict();
   if (games.null?()) {
@@ -44,30 +42,24 @@ _ games() method_id {
   do {
     (id, var game, f) = games.udict_get_prev?(32, id);
     if (f) {
-      var (game_type, start_time, end_time, bidding_fee, initial_price, buyout_price) = (
-        game~load_uint(8),
-        game~load_uint(32), game~load_uint(32), 
-        game~load_grams(), game~load_grams(), game~load_grams()
-      );
-      var minimum_step = 0;
-      var decrypt_time = 0;
-      var fixed_amount = 0;
-      if (game_type < 64) {
-        minimum_step = game~load_grams();
-      } else {
-        decrypt_time = game~load_uint(32);
-        fixed_amount = game~load_grams();
-      }
-      l = cons(game_tuple(game_type, start_time, end_time, bidding_fee, initial_price, buyout_price, minimum_step, decrypt_time, fixed_amount), l);
+      var (
+        game_type, game_flags, start_time, end_time,
+        min_tickets, max_tickets, cur_tickets,
+        ticket_price, prize_fund, repeat_count, repeat_delay,
+        prizes, participants, game_state
+      ) = game~load_game_fields();
+      l = cons(game_tuple(game_type, game_flags, start_time, end_time,
+        min_tickets, max_tickets, cur_tickets,
+        ticket_price, prize_fund, repeat_count, repeat_delay), l);
     }
   } until (~ f);
   return l;
 }
 
-;; Returns list of all bidders in a blind game or a top bidder in an open game
+;; Returns list of all prizes in a game
 
-_ bidders(int game_id) method_id {
-  var ds = get_data().begin_parse().skip_bits(32 + 256 + 8 + 256);
+_ prizes(int game_id) method_id {
+  var ds = get_data().begin_parse().skip_bits(32 + 256);
   ds~load_grams();
   var games = ds~load_dict();
   if (games.null?()) {
@@ -77,42 +69,71 @@ _ bidders(int game_id) method_id {
   var (game, game_found) = games.udict_get?(32, game_id);
   throw_unless(36, game_found);
 
-  var (game_type, start_time, end_time, bidding_fee, initial_price, buyout_price) = (
-    game~load_uint(8),
-    game~load_uint(32), game~load_uint(32), 
-    game~load_grams(), game~load_grams(), game~load_grams()
-  );
+  var (
+    game_type, game_flags, start_time, end_time,
+    min_tickets, max_tickets, cur_tickets,
+    ticket_price, prize_fund, repeat_count, repeat_delay,
+    prizes, participants, game_state
+  ) = game~load_game_fields();
 
   var l = nil;
-  if (game_type < 64) {
-    var minimum_step = game~load_grams();
-    var received_amount = game~load_grams();
-    if (received_amount != 0) {
-      var bidder_addr_slice = game~load_bits(256 + 8);
-      var (bidder_wc, bidder_addr) = (bidder_addr_slice~load_uint(8), bidder_addr_slice~load_uint(256));
-      l = cons(bid_tuple(bidder_wc, bidder_addr, received_amount, received_amount), l);
-    }
-    return l;
-  } else {
-    var decrypt_time = game~load_uint(32);
-    var fixed_amount = game~load_grams();
-    var bids = game~load_dict();
-    var bidder_addr = (1 << 255) + ((1 << 255) - 1);
-    do {
-      (bidder_addr, var bid, var f) = bids.udict_get_prev?(256, bidder_addr);
-      if (f) {
-        var (bidder_wc, received_amount) = (
-          bid~load_uint(32),
-          bid~load_grams()
-        );
-        var actual_amount = 0;
-        var bid_signature = bid~load_bits(512);
-        ifnot (bid.slice_data_empty?()) {
-          actual_amount = bid~load_grams();
-        }
-        l = cons(bid_tuple(bidder_wc, bidder_addr, received_amount, actual_amount), l);
+  var prize_id = 0x7fffffff;
+  do {
+    (prize_id, var prize, var f) = prizes.udict_get_prev?(32, prize_id);
+    if (f) {
+      var (
+        prize_type, prize_flags, 
+        fixed_part, fund_percentage_part, 
+        per_prize_probability, ticket_count, per_ticket_probability
+      ) = (0, 0, 0, 0, 0, 0, 0);
+      if (game_type < 64) {
+        (
+          prize_type, prize_flags, 
+          fixed_part, fund_percentage_part, 
+          per_prize_probability, ticket_count, per_ticket_probability
+        ) = prize~load_random_prize();
+      } else {
+        (
+          prize_type, prize_flags, 
+          fixed_part, fund_percentage_part
+        ) = prize~load_prize();
       }
-    } until (~ f);
-    return l;
+      l = cons(prize_tuple(prize_type, prize_flags, 
+        fixed_part, fund_percentage_part, 
+        per_prize_probability, ticket_count, per_ticket_probability), l);
+    }
+  } until (~ f);
+  return l;
+}
+
+;; Returns list of all participants in a game
+
+_ participants(int game_id) method_id {
+  var ds = get_data().begin_parse().skip_bits(32 + 256);
+  ds~load_grams();
+  var games = ds~load_dict();
+  if (games.null?()) {
+    return nil;
   }
+
+  var (game, game_found) = games.udict_get?(32, game_id);
+  throw_unless(36, game_found);
+
+  var (
+    game_type, game_flags, start_time, end_time,
+    min_tickets, max_tickets, cur_tickets,
+    ticket_price, prize_fund, repeat_count, repeat_delay,
+    prizes, participants, game_state
+  ) = game~load_game_fields();
+
+  var l = nil;
+  var player_pubkey = (1 << 255) + ((1 << 255) - 1);
+  do {
+    (player_pubkey, var entry, var f) = participants.udict_get_prev?(256, player_pubkey);
+    if (f) {
+      var (entry_wc, entry_addr, entry_amount, entry_tickets, entry_state) = entry~load_participant();
+      l = cons(participant_tuple(player_pubkey, entry_wc, entry_addr, entry_amount, entry_tickets), l);
+    }
+  } until (~ f);
+  return l;
 }
