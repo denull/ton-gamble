@@ -1,9 +1,9 @@
 #!/usr/bin/env fift -s
 "gamble-utils.fif" include
 
-{ ."<game-id> [<pubkey-name> <ticket-count>] [-O <output-boc>]" cr
+{ ."<game-id> [<key-name> <ticket-count>] [-O <output-boc>]" cr
   ."Prepares an internal message body to buy <ticket-count> tickets (by default 1) in a game <game-id>," cr
-  ."with a public key to be used for making moves loaded from or save to <pubkey-name>.pk ('game-entry.pk' by default)."
+  ."with a key to be used to sign future moves loaded from or saved to <key-name>.pk ('game-entry.pk' by default)."
 } : usage()
 
 // == Parsing command-line arguments
