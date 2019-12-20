@@ -1,32 +1,41 @@
 #!/usr/bin/env fift -s
 "gamble-utils.fif" include
 
-{ ."<game-id> [-O <output-boc>]" cr
-  ."Prepares an internal message body to be sent to a game."
+{ ."<game-id> [<pubkey-name> <ticket-count>] [-O <output-boc>]" cr
+  ."Prepares an internal message body to buy <ticket-count> tickets (by default 1) in a game <game-id>," cr
+  ."with a public key to be used for making moves loaded from or save to <pubkey-name>.pk ('game-entry.pk' by default)."
 } : usage()
 
 // == Parsing command-line arguments
 
+0 =: GameId
+"game-entry" =: KeyName
+"join-query" =: SaveFile
+1 =: TicketCount
 {
-  "-B" "--bid-filename" 1 { =: BidFile } option-long()
   "-O" "--output-file" 1 { =: SaveFile } option-long()
 
   1 { parse-int =: GameId } nth-argument()
+  2 { =: KeyName } nth-argument()
+  3 { parse-int =: TicketCount } nth-argument()
 } scan-args()
 1 < { show-usage() } if // Checks that there's enough arguments
 
 // == End of parsing command-line arguments
 
-"bid" =:? BidFile
-"bid-query" =:? SaveFile
+."Joining a game #" GameId . cr
 
-."Placing a new bid to game #" GameId . cr
+KeyName +".pk" load-generate-keypair
+=: PrivateKey
+=: PublicKey
 
 // Pack the internal message into a request data structure to be signed
 <b
   100 32 u,     // op, 100 = place a bid
   now 64 u,     // query_id
   GameId 32 u,
+  PublicKey B,
+  TicketCount 32 u,
 b> =: MessageBody
 
 ."Internal message body: " MessageBody <s csr. cr
