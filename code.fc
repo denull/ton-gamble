@@ -78,49 +78,47 @@
   .end_cell(), 3);
 }
 
-;; Counts the card's value (if is_hard is true, an ace is worth 1, otherwise 111)
-(int) blackjack_card_value(int card, int is_hard) {
+;; Counts the card's value
+(int, int) blackjack_card_value(int card) {
   var pip = card / 4; ;; 0=2, 1=3, 2=4 ... 8=10, 9=Q, 10=J, 11=K, 12=A
   if (pip < 8) {
-    return pip + 2;
+    return (pip + 2, pip + 2);
   } elseif (pip < 12) {
-    return 10;
-  } elseif (is_hard) {
-    return 1;
+    return (10, 10);
   } else {
-    return 11;
+    return (1, 11);
   }
 }
 
-(int) blackjack_hand_value(cell cards, int index, int is_hard, int limit) {
-  var sum = 0;
+(int, int) blackjack_hand_value(cell cards, int index, int limit) {
+  var min_sum = 0;
+  var max_sum = 0;
   do {
     var (card, f) = cards.udict_get?(index, 8);
     if (f) {
       var card_num = card~load_uint(8);
-      var value = blackjack_card_value(card_num, false);
-      if ((sum + value > limit) & is_hard) {
-        value = blackjack_card_value(card_num, true);
-      }
-      sum += value;
+      var (min_value, max_value) = blackjack_card_value(card_num);
+      min_sum += min_value;
+      max_sum += max_value;
     }
   } until (~ f);
-  return sum;
+  while ((max_sum > limit) & (max_sum - 10 >= min_sum)) {
+    max_sum -= 10;
+  }
+  return (max_sum, max_sum - 10 < min_sum);
 }
 
 (int) blackjack_is_over(int game_type, int game_flags, cell player_state) {
-  var player_hard = blackjack_hand_value(player_state, 1, true, 21);
-  if (player_hard > 21) {
+  var (player, player_hard) = blackjack_hand_value(player_state, 1, 21);
+  if (player > 21) {
     return -1;
   }
-  var dealer_hard = blackjack_hand_value(player_state, 129, true, 21);
-  if (dealer_hard > 21) {
+  var (dealer, dealer_hard) = blackjack_hand_value(player_state, 129, 21);
+  if (dealer > 21) {
     return 1;
   }
-  var player_soft = blackjack_hand_value(player_state, 1, false, 21);
-  var dealer_soft = blackjack_hand_value(player_state, 129, false, 21);
-  var player_blackjack = (player_hard == 21) | (player_soft == 21);
-  var dealer_blackjack = (dealer_hard == 21) | (dealer_soft == 21);
+  var player_blackjack = (player == 21);
+  var dealer_blackjack = (dealer == 21);
   if (player_blackjack & dealer_blackjack) {
     return 2; ;; tie
   } elseif (player_blackjack) {
@@ -173,9 +171,10 @@
   }
 
   ;; Perform dealer's move
-  var dealer_hit = blackjack_hand_value(player_state, 129, true, 17) <= 17;
-  if ((~ dealer_hit) & (game_flags & 1)) { ;; Hit on soft 17?
-    dealer_hit = blackjack_hand_value(player_state, 129, false, 17) <= 17;
+  var (dealer, dealer_hard) = blackjack_hand_value(player_state, 129, 17);
+  var dealer_hit = dealer < 17;
+  if ((~ dealer_hard) & (dealer == 17) & (game_flags & 1)) { ;; Hit on soft 17?
+    dealer_hit = true;
   }
 
   if (dealer_hit) {

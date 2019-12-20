@@ -170,26 +170,26 @@ PROGRAM{
     SENDRAWMSG
   }>
   blackjack_card_value PROC:<{
-    SWAP
     2 RSHIFT#
     DUP
     8 LESSINT
     IFJMP:<{
-      NIP
+      DUP
+      2 ADDCONST
+      SWAP
       2 ADDCONST
     }>
     12 LESSINT
     IFJMP:<{
-      DROP
       10 PUSHINT
+      DUP
     }>
-    IFJMP:<{
-      1 PUSHINT
-    }>
+    1 PUSHINT
     11 PUSHINT
   }>
   blackjack_hand_value PROC:<{
     0 PUSHINT
+    DUP
     UNTIL:<{
       8 PUSHINT
       s5 s4 PUSH2
@@ -200,23 +200,10 @@ PROGRAM{
         SWAP
         8 LDU
         DROP
-        DUP
-        FALSE
         blackjack_card_value CALLDICT
-        s3 s0 PUSH2
+        s4 s4 XCHG2
         ADD
-        s5 PUSH
-        GREATER
-        s6 PUSH
-        AND
-        IF:<{
-          DROP
-          TRUE
-          blackjack_card_value CALLDICT
-        }>ELSE<{
-          NIP
-        }>
-        s1 s2 XCHG
+        s2 s3 XCHG2
         ADD
       }>ELSE<{
         -ROT
@@ -225,17 +212,35 @@ PROGRAM{
       SWAP
       NOT
     }>
-    s0 s4 XCHG
-    4 BLKDROP
+    s3 POP
+    s3 POP
+    WHILE:<{
+      2DUP
+      GREATER
+      s2 PUSH
+      -10 ADDCONST
+      s4 PUSH
+      GEQ
+      AND
+    }>DO<{
+      SWAP
+      -10 ADDCONST
+      SWAP
+    }>
+    DROP
+    DUP
+    -10 ADDCONST
+    ROT
+    LESS
   }>
   blackjack_is_over PROC:<{
     NIP
     NIP
     1 PUSHINT
-    TRUE
-    s2 s(-1) s(-1) PUXC2
+    s1 s(-1) PUXC
     21 PUSHINT
     blackjack_hand_value CALLDICT
+    DROP
     DUP
     21 GTINT
     IFJMP:<{
@@ -243,37 +248,20 @@ PROGRAM{
       -1 PUSHINT
     }>
     129 PUSHINT
-    TRUE
-    s3 s(-1) s(-1) PUXC2
+    s1 s2 XCHG
     21 PUSHINT
     blackjack_hand_value CALLDICT
+    DROP
     DUP
     21 GTINT
     IFJMP:<{
-      3 BLKDROP
+      2DROP
       1 PUSHINT
     }>
-    1 PUSHINT
-    FALSE
-    s4 s(-1) s(-1) PUXC2
-    21 PUSHINT
-    blackjack_hand_value CALLDICT
-    129 PUSHINT
-    FALSE
-    s2 s5 XCHG
-    21 PUSHINT
-    blackjack_hand_value CALLDICT
-    s0 s2 XCHG
-    21 EQINT
-    s0 s3 XCHG
-    21 EQINT
-    s1 s3 XCHG
-    OR
-    s0 s2 XCHG
+    SWAP
     21 EQINT
     SWAP
     21 EQINT
-    OR
     2DUP
     AND
     IFJMP:<{
@@ -367,13 +355,17 @@ PROGRAM{
       3 BLKDROP
     }>
     129 PUSHINT
-    TRUE
-    s2 s(-1) s(-1) PUXC2
+    s1 s(-1) PUXC
     17 PUSHINT
     blackjack_hand_value CALLDICT
-    18 LESSINT
-    DUP
+    OVER
+    17 LESSINT
+    SWAP
     NOT
+    s0 s2 XCHG
+    17 EQINT
+    s1 s2 XCHG
+    AND
     s0 s3 XCHG
     1 PUSHINT
     AND
@@ -381,12 +373,7 @@ PROGRAM{
     AND
     IF:<{
       NIP
-      129 PUSHINT
-      FALSE
-      s2 s(-1) s(-1) PUXC2
-      17 PUSHINT
-      blackjack_hand_value CALLDICT
-      18 LESSINT
+      TRUE
     }>ELSE<{
       SWAP
     }>
