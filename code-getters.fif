@@ -309,7 +309,7 @@ PROGRAM{
           s2 POP
           s3 s3 XCHG2
           MUL
-          4294967200 PUSHINT
+          1000000000 PUSHINT
           DIV
           s1 s2 XCHG
           ADD
@@ -426,10 +426,10 @@ PROGRAM{
         s5 POP
         s8 s(-1) PUXC
         MUL
-        4294967200 PUSHINT
+        1000000000 PUSHINT
         DIV
         ADD
-        4294967200 PUSHINT
+        1000000000 PUSHINT
         RAND
         s0 s4 XCHG2
         LEQ
@@ -474,7 +474,7 @@ PROGRAM{
             s1 s(-1) PUXC
             AND
           }>DO<{
-            4294967200 PUSHINT
+            1000000000 PUSHINT
             RAND
             s3 PUSH
             LEQ

@@ -32,9 +32,9 @@
 
 // == Parsing command-line arguments
 
-42949672 constant MaxUInt32
-{ MaxUInt32 swap */r } : Percent*/
-{ MaxUInt32 * } : Percent*
+10000000 constant TenM
+{ TenM swap */r } : Percent*/
+{ TenM * } : Percent*
 { (number) ?dup 0= abort"not a valid percentage" 1- ' Percent*/ ' Percent* cond } : parse-percent
 
 0 =: GameFlags

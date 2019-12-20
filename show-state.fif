@@ -32,42 +32,43 @@ ContractData parse-data()
 ."  games:" cr
 Games 32 {
   ."    #" over ._ .":" cr
-  8 u@+ over  ."    ┌  game_type:   " . cr
+  8 u@+ swap dup =: GameType  ."    ┌  game_type:   " . cr
+  64 u@+ swap ."    │  game_flags:     " . cr
   32 u@+ swap ."    │  start_time:     " . cr
   32 u@+ swap ."    │  end_time:       " . cr
-  Gram@+ swap ."    │  bidding_fee:    " .GR cr
-  Gram@+ swap ."    │  initial_price:  " .GR cr
-  Gram@+ swap ."    │  buyout_price:   " .GR cr
-  32 u@+ swap ."    │  stock_size:     " . cr
-  swap 64 < {
-    Gram@+ swap ."    │  minimum_step:   " .GR cr
-                ."    │" cr
-    Gram@+ over ."    │  current_price:  " .GR cr
-    swap {
-      8 i@+ 256 u@+ -rot ."    └  current_bidder: " .addr cr
-    } {
-      ."    └  current_bidder: (nobody)" cr
-    } cond
-  } {
-    32 u@+ swap ."    │  decrypt_time:   " . cr
-    Gram@+ swap ."    │  fixed_amount:   " .GR cr
-                ."    │" cr
-                ."    │  bids:" cr
-    dict@+ swap 256 {
-      8 i@+ -rot swap ."    │  ┌  bidder_addr:     " .addr cr
-      Gram@+ swap     ."    │  │  received_amount: " .GR cr
-      64 B@+ swap     ."    │  │  bid_signature:   " Bx. cr
-                      ."    │  │" cr
-      sbits {
-        Gram@+ swap   ."    │  └  actual_bid:      " .GR cr
-      } {
-                      ."    │  └  (actual bid amount is not presented yet)" cr
-      } cond
-      -1
-    } dictforeach
-    ."    └" cr
-    drop
-  } cond
+  32 u@+ swap ."    │  min_tickets:       " . cr
+  32 u@+ swap ."    │  max_tickets:     " . cr
+  32 u@+ swap ."    │  cut_tickets:     " . cr
+  Gram@+ swap ."    │  ticket_price:    " .GR cr
+  Gram@+ swap ."    │  prize_fund:    " .GR cr
+  32 u@+ swap ."    │  repeat_count:       " . cr
+  32 u@+ swap ."    │  repeat_delay:     " . cr
+              ."    │" cr
+              ."    │  prizes:" cr
+  dict@+ swap 32 {
+                    ."    │  ┌  prize_id:     " over ._ cr
+    8 u@+ swap      ."    │  │  prize_type:   " . cr
+    64 u@+ swap     ."    │  │  prize_flags:   " . cr
+    Gram@+ swap     ."    │  │  fixed_amount: " .GR cr
+    32 u@+ swap     ."    │  │  fund_percentage:   " . ."/ 1000000000" cr
+    GameType 64 < {
+      32 u@+ swap     ."    │  │  per_prize_probability:   " . ."/ 1000000000" cr
+      32 u@+ swap     ."    │  │  ticket_count:   " . cr
+      32 u@+ swap     ."    │  │  per_ticket_probability:   " . ."/ 1000000000" cr
+    } if
+    ."    │  └" cr
+    -1
+  } dictforeach
+                        ."    │" cr
+                        ."    │  participants:" cr
+  dict@+ swap 256 {
+                        ."    │  ┌  public_key:     " over x. cr
+    8 i@+ 256 u@+ -rot  ."    │  │  player_addr:     " 2dup @' BounceFlag 7 + .Addr ." = " .addr cr
+    Gram@+ swap         ."    │  │  received_amount: " .GR cr
+    32 u@+ swap         ."    │  └  ticket_count:   " . cr
+    -1
+  } dictforeach
+  ."    └" cr
   -1
 } dictforeach
 drop
