@@ -52,15 +52,17 @@ This should rebuild files `code-getters.fif` (full version of the contract) and 
 
 The idea behind this smart contract is to implement a framework for different gambling activities, such as lotteries, slot machines, card and board games. Two initial examples are provided for now: a simple lottery and a Blackjack card game.
 
-At any time the owner of the smart contract can start a new game of any supported type. After that, everyone is free to join that game.
+At any time the owner of the smart contract can start a new game of any supported type. After that, everyone is free to join that game by sending **an internal message** to the contract (use `join-game.fif` to generate bodies of such messages). The Gram value attached to such message becomes his stake at the game.
 
-A lottery is the simplest case of a game. It does not further actions from the owner (except for starting a game). When a new game of lottery is created, the owner sets up its start/end time, min/max number of tickets sold, price of a ticket, initial prize fund, amounts of prizes and their counts/probabilities.
+A lottery is the simplest case of a game. It does not require further actions from the participant or the owner (except for initiating a game). When a new game of lottery is created, the owner sets up its start/end time, min/max number of tickets sold, price of a ticket, initial prize fund, amounts of prizes and their counts/probabilities (see the `new-game.fif` script for details).
 
 As soon as max number of tickets is sold (or at the specified end time), the prizes are distributed among participants automatically by the contract. In case there's not enough tickets sold (less than specified min number), the game is cancelled and all stakes are returned.
 
-More interactive games, such as Blackjack or Poker, require the owner of the contract to participate in the process more actively. This is because of two reasons:
+Other games, like a Blackjack, usually require the participant to make moves after joining the game. To do that, one generates external messages with `make-move.fif` script, signing them with a key he provided when joined the game.
+
+In future, there planned more sophisticated games, allowing multiple participants to interact with each other (not just with the dealer). This poses some difficult problems to solve, so such games are not yet implemented. In particular, there's two requirements:
 1. There should be some random, but unknown to players (until the end of the game) state. As the state of the smart contract itself is stored in the blockchain and available for everybody, it's not suitable for this purpose.
-2. Players need to frequently make moves during the game. Making those moves by sending messages to the contract can slow down the game, so it would be preferable to do off-chain.
+2. Players need to be able to frequently make moves during the game. Making those moves by sending messages to the contract can slow down the game, so it would be preferable to do off-chain.
 
 To solve those problems, the owner should keep the game state externally, and update it in response to players' moves. After the game ends, the owner submits all that data to the contract for validation. Only if it's correct (does not violate game rules and contains valid players' signatures), the winner receives the prize money.
 
@@ -74,24 +76,69 @@ It should be noted that this mechanism is not preventing the owner from cheating
 This script is used to generate an initialisation message for your contract. It will provide you with a non-bounceable address to send some initial funds to, and after that you can upload to contract's code (using `sendfile` in your TON client).
 
 ## Starting a new game
-`./new-game.fif <contract> <seqno> <game-id> <game-type> [-O <output-boc>]`
-(external)
+`./new-game.fif <contract> <seqno> <game-id> <game-type> [<options>] [-O <output-boc>]`
+
+Starts a new game with provided identifier, type and additional options.
+
+For now, two types of games are supported:
+* `0`: A lottery/slot-machine,
+* `64`: Blackjack.
+
+Additional options are:
+* `-f <game-flags>` Game-specific flags,
+  For Blackjack, flag 1 indicates that the 'hit on soft 17' rule should be active,
+* `-s <start-time>` Unixtime when the game starts,
+* `-e <end-time>` Unixtime when the game ends,
+* `-n <min-tickets>` Minimum amount of tickets required for this game to be conducted,
+* `-x <max-tickets>` Amount of tickets, that triggers the game,
+* `-t <ticket-price>` Price of a single ticket in Grams,
+* `-i <initial-fund>` Initial size of a prize fund (will be increased by the total cost of all tickets sold),
+* `-c <repeat-count>` Number of times this game should be automatically repeated,
+* `-d <repeat-delay>` Delay in seconds between game repeats,
+* `-p <prize-id> <fixed-amount> <prize-fund-percent>`
+  Defines a prize with a fixed value in Grams plus a some percentage of the prize fund.
+* `-l <prize-id> <fixed-amount> <prize-fund-percent> <per-prize-probability> <ticket-count> <per-ticket-probability>`
+  Defines a prize in a lottery (see -p option above) with the probability of giving out this prize at all, number of tickets that can possibly receive, and probability to receive it for each ticket.
+
+Option `-l` can be used multiple times to define multiple prizes. For Blackjack, a `-p` option should used exactly once with a `<prize-id>=1`.
+For Blackjack (and other games with arbitrary bids), `<min-tickets>`, `<max-tickets>` fields should not be used. `<ticket-price>` is used as a minimum size of a bid.
+
+For example:
+`./new-game.fif lottery-game 1 0 -e 1577825999 -n 100 -x 1000 -i 500 -t 1 -p 1 500 0 1 1 100 -p 2 0 0.5 100 100 100 -p 3 2 0 100 50 60`
+Create a lottery that ends on December 31st of 2019, with a minimum of 100 and a maximum of 1000 participants. One ticket has a price of 1 Gram. The initial size of a prize fund is 500 Grams, this is a Jackpot, which will be given with a 1% probabiltity. Additionally, there's 100 prizes with each one equal to 0.5% of the total prize fund (i.e. 50% in total), and 50 prizes 2 Grams each (100 Grams total), but each of these 50 prizes has only 60% probability (so in reality there will be less than 50 prizes).
+
+`./new-game.fif blackjack-game 2 64 -t 10 -p 1 2 200`
+Create a game of Blackjack, with a minimum bid equal to 10 Grams, and a prize equal to 2 Grams + double your bid. There's no time restriction (you can play at any time, until the owner cancels this game).
 
 ## Canceling a game
 `./cancel-game.fif <contract> <seqno> <game-id> [-O <output-boc>]`
-(external)
+
+The owner can cancel a game at any moment. All currently bought tickets/bids will be returned to players.
 
 ## Joining a game
-`./join-game.fif <game-id> [-O <output-boc>]`
-(internal)
+`./join-game.fif <game-id> [<key-name> <ticket-count>] [-O <output-boc>]`
+
+Prepare an internal message body to participate in a game with the specified identifier. You can also provide the number of tickets you wish to buy (for lottery-style games only; games with arbitrary bids should always accept a single ticket).
+
+After running this script, you'll have two files: a private key (in `<key-name>.pk`) to later sign your moves, and a internal message's body in `<output-boc>.boc`. That body you need to send in a internal message from your wallet, with the required amount of Grams attached to it.
+
+After that you'll become a participant of that game.
 
 ## Making a move
-`./make-move.fif <contract-addr> <seqno> <game-id> [-O <output-boc>]`
-(external)
+`./make-move.fif <contract-addr> <key-name> <seqno> <game-id> <action> [-O <output-boc>]`
+
+Make a move in a game that you're participating in. You need to provide a game contract address and also a `<key-name>`, pointing to a file, generated with `join-game.fif`.
+
+For lotteries, there's only one possible action: `0`, to "ping" a lottery. This will trigger a raffle if a lottery is ended.
+
+For Blackjack, you have two usual options: to stand (action = `0`) or to hit (action = `1`). After that the dealer's turn will be computed automatically.
 
 ## Updating game state
 `./update-game.fif <contract> <seqno> <game-id> <state-boc> [-O <output-boc>]`
-(external)
+
+This script will later be used to synchronise the off-chain state with the on-chain one. It's required when an off-chain game ends, or when any participant of a game forces such update (by committing a move to the contract).
+
+As now there's no games with the support of off-chain interaction, this is not supported yet.
 
 ## Withdrawing funds from the contract
 `./withdraw.fif <contract> <dest-addr> <seqno> <amount> [-O <output-boc>]`
@@ -123,7 +170,9 @@ List of available methods:
    Returns the amount of nanograms that are currently reserved (i.e. cannot be withdrawn).
 * `games`
    Returns the list of currently active games.
-* `players(game_id)`
+* `prizes(game_id)`
+   Returns the list of prizes in a game.
+* `participants(game_id)`
    Returns the list of players in a game.
 
 # Troubleshooting

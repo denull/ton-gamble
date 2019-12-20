@@ -27,7 +27,7 @@
   ." number of tickets that can possibly receive it is <ticket-count>,"
   ." and probability to receive it for each ticket is <per-ticket-probability> (0.0-100.0)." cr cr
   ."Option -l can be used multiple times to define multiple prizes. For Blackjack, a -p option should used exactly once with a <prize-id>=1." cr
-  ."For Blackjack (and other games with arbitrary bids), <min-tickets>, <max-tickets> and <ticket-price> fields should not be used." 
+  ."For Blackjack (and other games with arbitrary bids), <min-tickets>, <max-tickets> fields should not be used. <ticket-price> is used as a minimum size of a bid." 
 } : usage()
 
 // == Parsing command-line arguments
