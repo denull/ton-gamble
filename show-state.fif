@@ -59,7 +59,7 @@ Games 32 {
     ."    │  └" cr
     -1
   } dictforeach
-  drop
+  drop drop drop
                         ."    │" cr
                         ."    │  participants:" cr
   dict@+ swap 256 {
@@ -69,7 +69,7 @@ Games 32 {
     32 u@+ swap         ."    │  └  ticket_count:   " . cr
     -1
   } dictforeach
-  drop
+  drop drop drop
   ."    └" cr
   -1
 } dictforeach
