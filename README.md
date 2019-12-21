@@ -133,7 +133,7 @@ Make a move in a game that you're participating in. You need to provide a game c
 
 For lotteries, there's only one possible action: `0`, to "ping" a lottery. This will trigger a raffle if a lottery is ended.
 
-For Blackjack, you have two usual options: to stand (action = `0`) or to hit (action = `1`). After that the dealer's turn will be computed automatically.
+For Blackjack, you have two usual options: to stand (action = `0`) or to hit (action = `1`). After that the dealer's turn will be computed automatically. To inspect your current cards in hand, export the current contract's state (via `getaccountdata` command in liteclient) and then use the `show-state.fif` script (see below). It will display your cards (and show their numeric value). The same can be done to check your last game outcome (including the final hands).
 
 ## Updating game state
 `./update-game.fif <contract> <seqno> <game-id> <state-boc> [-O <output-boc>]`
@@ -155,9 +155,9 @@ Use this request to update your contract's code. By default it uses code from `c
 ## Inspecting cotract's state
 `./show-state.fif <data-boc>`
 
-This script will help to examine the current state of the contract. First, you need to download its state using the `saveaccountdata <filename> <addr>` command in the shell of your client. After that you can pass the generated boc-file to this script.
+This script will help you to examine the current state of the contract. First, you need to download its state using the `saveaccountdata <filename> <addr>` command in the shell of your client. After that you can pass the generated boc-file to this script.
 
-It should output detailed info about cotract's params, list of active games and bids. Alternatively, you can use get-methods to inspect those values (see the next section).
+It should output detailed info about cotract's params, list of active games, information about each player and per-player results in a previous game. Alternatively, you can use get-methods to inspect those values (see the next section).
 
 # Get methods
 
