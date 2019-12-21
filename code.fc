@@ -91,16 +91,18 @@
 }
 
 (int, int) blackjack_hand_value(cell cards, int index, int limit) {
+  dump_stack();
   var min_sum = 0;
   var max_sum = 0;
   do {
-    var (card, f) = cards.udict_get?(index, 8);
+    var (card, f) = cards.udict_get?(8, index);
     if (f) {
       var card_num = card~load_uint(8);
       var (min_value, max_value) = blackjack_card_value(card_num);
       min_sum += min_value;
       max_sum += max_value;
     }
+    index += 1;
   } until (~ f);
   while ((max_sum > limit) & (max_sum - 10 >= min_sum)) {
     max_sum -= 10;
@@ -138,7 +140,7 @@
     send_money(player_wc, player_addr, player_bid);
   } elseif (outcome == 1) {
     ;; Player wins, pay the prize
-    var (prize, f) = prizes.udict_get?(1, 32); ;; As a single-player game, Blackjack should contain a single prize
+    var (prize, f) = prizes.udict_get?(32, 1); ;; As a single-player game, Blackjack should contain a single prize
     if (f) {
       var (prize_type, prize_flags, fixed_part, fund_percentage_part) = prize~load_prize();
 
@@ -155,7 +157,7 @@
 
 ;; Applies player's action to a state in game (checking it for validity)
 (cell, ()) ~blackjack_apply_move(cell player_state, int game_type, int game_flags, int action) {
-  var (counts, f) = player_state.udict_get?(255, 8);
+  var (counts, f) = player_state.udict_get?(8, 255);
   var (player_cards, dealer_cards) = (counts~load_uint(8), counts~load_uint(8));
 
   ;; action = 0 => stand

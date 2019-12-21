@@ -189,11 +189,12 @@ PROGRAM{
     11 PUSHINT
   }>
   blackjack_hand_value PROC:<{
+    DUMPSTK
     0 PUSHINT
     DUP
     UNTIL:<{
+      s3 s4 PUSH2
       8 PUSHINT
-      s5 s4 PUSH2
       DICTUGET
       NULLSWAPIFNOT
       DUP
@@ -210,8 +211,11 @@ PROGRAM{
         -ROT
         DROP
       }>
+      s0 s4 XCHG
+      INC
       SWAP
       NOT
+      s1 s4 XCHG
     }>
     s3 POP
     s3 POP
@@ -292,9 +296,9 @@ PROGRAM{
       DUP
       1 EQINT
       IF:<{
-        32 PUSHINT
-        ROT
         1 PUSHINT
+        ROT
+        32 PUSHINT
         DICTUGET
         NULLSWAPIFNOT
         IF:<{
@@ -322,9 +326,9 @@ PROGRAM{
     0 EQINT
   }>
   ~blackjack_apply_move PROC:<{
-    8 PUSHINT
-    s4 PUSH
     8 PUSHPOW2DEC
+    s4 PUSH
+    8 PUSHINT
     DICTUGET
     NULLSWAPIFNOT
     DROP
