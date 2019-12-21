@@ -31,7 +31,7 @@ ContractData parse-data()
 
 ."  games:" cr
 Games 32 {
-  ."    #" over ._ .":" cr
+  ."    #" swap ._ .":" cr
   8 u@+ over  ."    ┌  game_type:     " . cr
   64 u@+ swap ."    │  game_flags:    " . cr
   32 u@+ swap ."    │  start_time:    " . cr
@@ -46,32 +46,32 @@ Games 32 {
               ."    │" cr
               ."    │  prizes:" cr
   dict@+ swap 32 {
-                    ."    │  ┌  prize_id:           " over ._ cr
+                    ."    │  ┌  prize_id:           " swap ._ cr
     8 u@+ swap      ."    │  │  prize_type:         " . cr
     64 u@+ swap     ."    │  │  prize_flags:        " . cr
     Gram@+ swap     ."    │  │  fixed_amount:       " .GR cr
     32 u@+ swap     ."    │  │  fund_percentage:    " . ."/ 1000000" cr
-    3 pick 64 < {
+    2 pick 64 < {
       32 u@+ swap   ."    │  │  per_prize_probability:  " . ."/ 1000000" cr
       32 u@+ swap   ."    │  │  ticket_count:           " . cr
       32 u@+ swap   ."    │  │  per_ticket_probability: " . ."/ 1000000" cr
     } if
     ."    │  └" cr
-    -1
+    drop -1
   } dictforeach
-  drop drop drop
+  drop
                         ."    │" cr
                         ."    │  participants:" cr
   dict@+ swap 256 {
-                        ."    │  ┌  public_key:         " over x. cr
+                        ."    │  ┌  public_key:         " swap x. cr
     8 i@+ 256 u@+ -rot  ."    │  │  player_addr:        " 2dup @' true 7 + .Addr ." = " .addr cr
     Gram@+ swap         ."    │  │  received_amount:    " .GR cr
     32 u@+ swap         ."    │  │  ticket_count:       " . cr
-    3 pick 64 = { // Blackjack's state
+    2 pick 64 = { // Blackjack's state
                         ."    │  │" cr
                         ."    │  │  cards:" cr
       dict@+ swap 8 {
-        over dup 255 < {
+        swap dup 255 < {
           ."    │  │    " 
           dup 128 < {
             ."player's #" ._
@@ -79,15 +79,19 @@ Games 32 {
             ."dealer's #" 128 - ._
           } cond
           8 u@+ swap .":      " dup print-card() ." (" ._ .")" cr
-        } if
+        } {
+          drop
+        } cond
+        drop
         -1
       } dictforeach
-      drop drop drop
+      drop
     } if
                         ."    │  └" cr
+    drop
     -1
   } dictforeach
-  drop drop drop
+  drop
                         ."    │" cr
                         ."    │  last_results:" cr
   dict@+ swap 256 {
@@ -95,7 +99,7 @@ Games 32 {
     8 i@+ 256 u@+ -rot  ."    │  │  player_addr:        " 2dup @' true 7 + .Addr ." = " .addr cr
     Gram@+ swap         ."    │  │  received_amount:    " .GR cr
     32 u@+ swap         ."    │  │  ticket_count:       " . cr
-    3 pick 64 = { // Blackjack's state
+    2 pick 64 = { // Blackjack's state
                         ."    │  │" cr
                         ."    │  │  cards:" cr
       dict@+ swap 8 {
@@ -107,10 +111,13 @@ Games 32 {
             ."dealer's #" 128 - ._
           } cond
           8 u@+ swap .":      " dup print-card() ." (" ._ .")" cr
-        } if
+        } {
+          drop
+        } cond
+        drop
         -1
       } dictforeach
-      drop drop drop
+      drop
     } if
                         ."    │  │" cr
     Gram@+ swap         ."    │  │  total_prize_amount: " .GR cr
@@ -119,11 +126,11 @@ Games 32 {
                         ."    │  │    #" over ._ .": " Gram@+ swap .GR cr
       -1
     } dictforeach
-    drop drop drop
+    drop
                         ."    │  └" cr
     -1
   } dictforeach
-  drop drop drop
+  drop
   ."    └" cr
   drop -1
 } dictforeach

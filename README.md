@@ -32,6 +32,8 @@ This directory contains following files:
    Fift script that simulates sending an internal message to a contract locally. Loads the original contract state and returns the modified one.
 * `test-method.fif`
    Fift script that simulates executing a get-method of a smart contract for a given state. It includes `code-getters.fif`, so it can call get-methods even if the contract was uploaded without them.
+* `tests`
+   Directory containing some shell scripts for testing purposes. Note that you'll probably need to fix paths in them before using.
 
 If you wish to make modifications to the contract's code, it's better to test it using `test-...` scripts without actually uploading it to the blockchain. The same can be done in case something goes wrong (see "Troubleshooting" section below).
 
