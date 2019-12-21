@@ -1,4 +1,4 @@
-// automatically generated from `../src/crypto/smartcont/stdlib.fc` `code.fc` `getters.fc` 
+// automatically generated from `../../src/crypto/smartcont/stdlib.fc` `../code.fc` `../getters.fc` 
 PROGRAM{
   DECLPROC ~store_game
   DECLPROC get_initial_state
