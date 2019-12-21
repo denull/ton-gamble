@@ -376,7 +376,7 @@ _ pack_state(int seqno, int owner_pubkey, int reserved_balance, cell games) inli
     }
     var (entry, entry_found) = participants.udict_get?(256, player_pubkey);
     if (entry_found & (game_type >= 64)) { ;; => for interactive games it's not allowed to top up your balance after the initial bid
-      return send_message_back(src_addr_slice, 0xfffffffe, query_id, op, 50, 0, 64);
+      return send_message_back(src_addr_slice, 0xfffffffe, query_id, op, 52, 0, 64);
     }
     var (entry_wc, entry_addr, entry_amount, entry_tickets, entry_state) = (src_wc, src_addr, 0, 0, get_initial_state(game_type, game_flags));
     if (entry_found) {
@@ -445,7 +445,7 @@ _ pack_state(int seqno, int owner_pubkey, int reserved_balance, cell games) inli
   } elseif (op == 102) {
     ;; Make a move in a game
     var current_pubkey = cs~load_uint(256);
-    throw_unless(35, check_signature(slice_hash(in_msg), signature, current_pubkey));
+    throw_unless(34, check_signature(slice_hash(in_msg), signature, current_pubkey));
     set_data(pack_state(stored_seqno, owner_pubkey, reserved_balance, games));
     commit();
 

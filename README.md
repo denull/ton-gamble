@@ -187,6 +187,34 @@ But most importantly, you can run `test-external.fif` or `test-internal.fif` wit
 
 * Error **33**. *Invalid outer seqno*.
    The current stored seqno is different from the one in the incoming message.
+* Error **34**. *Invalid signature*.
+   The signature of this message is invalid.
+* Error **35**. *Message is expired*.
+   The message has a valid_until field set and it's in the past. Note that the provided Fift scripts do not set this field (you can set the expiration time for an order, but not for a message containing it).
+* Error **36**. *Game not found*.
+   The game with that identifier is not found (cancelled, completed, or never existed).
+* Error **37**. *Invalid game type*.
+   This game has an invalid type.
+* Error **38**. *Game is not yet ended*.
+   You can't trigger a lottery raffle before it ended.
+* Error **40**. *Participant not found*.
+   The public key you've provided is not among registered participants of this game.
+* Error **41**. *Wrong workchain id*.
+   The workchain does not match.
+* Error **43**. *This amount is too large to withdraw*.
+   By withdrawing the provided amount of Grams, the remaining balance will be less than the currently reserved amount.
+* Error **44**. *Duplicate game id*.
+   Game with this id already exists.
+* Error **46**. *Game is not yet started*.
+   You can't participate before the game is started.
+* Error **47**. *Game is already ended*.
+   You can't participate after the game end.
+* Error **48**. *Ticket count must be non-negative*.
+   The amount of tickets you're trying to buy is less or equal to zero.
+* Error **49**. *Not enough money to buy specified number of tickets*.
+   The attached value in Grams should be at least equal to the specified ticket price multiplied by number of tickets.
+* Error **52**. *A bid is already placed*.
+   This game does not allow adding money to your initial bid.
 
 # Fift words conventions
 
