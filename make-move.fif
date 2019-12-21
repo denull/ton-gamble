@@ -39,7 +39,7 @@ KeyName +".pk" load-keypair
 <b
   SeqNo 32 u,   // seqno
   -1 32 i,      // valid_until
-  101 32 u,     // op, 101 = make a move
+  102 32 u,     // op, 102 = make a move
   PublicKey B,
   GameId 32 u,
   Action 32 u,

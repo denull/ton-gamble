@@ -91,7 +91,6 @@
 }
 
 (int, int) blackjack_hand_value(cell cards, int index, int limit) {
-  dump_stack();
   var min_sum = 0;
   var max_sum = 0;
   do {
@@ -110,7 +109,7 @@
   return (max_sum, max_sum - 10 < min_sum);
 }
 
-(int) blackjack_is_over(int game_type, int game_flags, cell player_state) {
+(int) blackjack_is_over(int game_type, int game_flags, cell player_state, int dealer_hit) {
   var (player, player_hard) = blackjack_hand_value(player_state, 1, 21);
   if (player > 21) {
     return -1;
@@ -128,13 +127,23 @@
   } elseif (dealer_blackjack) {
     return -1;
   } else {
-    return 0;
+    ifnot (dealer_hit) {
+      if (player == dealer) {
+        return 2;
+      } elseif (player > dealer) {
+        return 1;
+      } else {
+        return -1;
+      }
+    } else {
+      return 0;
+    }
   }
 }
 
 ;; Check if player is still in a game of Blackjack (also gives a prize, if player if won)
-(int) blackjack_check_state(int game_type, int game_flags, cell player_state, cell prizes, int player_wc, int player_addr, int player_bid) {
-  var outcome = blackjack_is_over(game_type, game_flags, player_state);
+(int) blackjack_check_state(int game_type, int game_flags, cell player_state, int dealer_hit, cell prizes, int player_wc, int player_addr, int player_bid) {
+  var outcome = blackjack_is_over(game_type, game_flags, player_state, dealer_hit);
   if (outcome == 2) {
     ;; A tie, just return the bid
     send_money(player_wc, player_addr, player_bid);
@@ -156,7 +165,7 @@
 }
 
 ;; Applies player's action to a state in game (checking it for validity)
-(cell, ()) ~blackjack_apply_move(cell player_state, int game_type, int game_flags, int action) {
+(cell, (int)) ~blackjack_apply_move(cell player_state, int game_type, int game_flags, int action) {
   var (counts, f) = player_state.udict_get?(8, 255);
   var (player_cards, dealer_cards) = (counts~load_uint(8), counts~load_uint(8));
 
@@ -164,12 +173,13 @@
   ;; action = 1 => hit
   if (action) {
     ;; Deal a new card to player
-    player_state~udict_set_builder(8, player_cards, begin_cell().store_uint(rand(52), 8));
     player_cards += 1;
+    player_state~udict_set_builder(8, player_cards, begin_cell().store_uint(rand(52), 8));
+    dump_stack();
   }
 
-  if (action & (blackjack_is_over(game_type, game_flags, player_state) != 0)) {
-    return (player_state, ());
+  if (action & (blackjack_is_over(game_type, game_flags, player_state, true) != 0)) {
+    return (player_state, (false));
   }
 
   ;; Perform dealer's move
@@ -181,12 +191,12 @@
 
   if (dealer_hit) {
     ;; Deal a new card to dealer (self)
-    player_state~udict_set_builder(8, 128 + dealer_cards, begin_cell().store_uint(rand(52), 8));
     dealer_cards += 1;
+    player_state~udict_set_builder(8, 128 + dealer_cards, begin_cell().store_uint(rand(52), 8));
   }
 
   player_state~udict_set_builder(8, 255, begin_cell().store_uint(player_cards, 8).store_uint(dealer_cards, 8));
-  return (player_state, ());
+  return (player_state, (dealer_hit));
 }
 
 () lottery_raffle(cell prizes, cell entries, int prize_fund) impure {
@@ -396,7 +406,7 @@ _ pack_state(int seqno, int owner_pubkey, int reserved_balance, cell games) inli
       is_game_over = (cur_tickets >= max_tickets);
     } elseif (game_type == 64) {
       ;; Blackjack can potentially end instantly (for that player), check for that
-      is_in_game = blackjack_check_state(game_type, game_flags, entry_state, prizes, entry_wc, entry_addr, entry_amount);
+      is_in_game = blackjack_check_state(game_type, game_flags, entry_state, true, prizes, entry_wc, entry_addr, entry_amount);
     }
 
     if (is_in_game) {
@@ -486,11 +496,11 @@ _ pack_state(int seqno, int owner_pubkey, int reserved_balance, cell games) inli
           prizes, participants, game_state);
       }
     } elseif (game_type == 64) {
+      accept_message();
       ;; Blackjack: hit/stand
       var (entry_wc, entry_addr, entry_amount, entry_tickets, entry_state) = entry~load_participant();
-      entry_state~blackjack_apply_move(game_type, game_flags, action); ;; can throw
-      accept_message();
-      var is_in_game = blackjack_check_state(game_type, game_flags, entry_state, prizes, entry_wc, entry_addr, entry_amount);
+      var dealer_hit = entry_state~blackjack_apply_move(game_type, game_flags, action);
+      var is_in_game = blackjack_check_state(game_type, game_flags, entry_state, dealer_hit, prizes, entry_wc, entry_addr, entry_amount);
       if (is_in_game) {
         participants~udict_set_builder(256, current_pubkey, begin_cell()
           .store_uint(entry_wc, 8)
@@ -502,6 +512,13 @@ _ pack_state(int seqno, int owner_pubkey, int reserved_balance, cell games) inli
       } else {
         participants~udict_delete_get?(256, current_pubkey);
       }
+      games~store_game(game_id, false,
+        game_type, game_flags, 
+        start_time, end_time, 
+        min_tickets, max_tickets, cur_tickets,
+        ticket_price, prize_fund,
+        repeat_count, repeat_delay,
+        prizes, participants, game_state);
     }
   } else {
     throw_unless(34, check_signature(slice_hash(in_msg), signature, owner_pubkey));
