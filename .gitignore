@@ -1,1 +1,3 @@
-data
+tests/*.boc
+tests/*.pk
+tests/*.addr
