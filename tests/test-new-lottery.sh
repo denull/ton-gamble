@@ -1,0 +1,2 @@
+../new-game.fif gamble $1 $2 0 -t 1 -x 10 -l 1 5 0 1 1 100 -l 2 0 0.5 100 5 100 -l 3 2 0 100 5 60
+../../build/lite-client/lite-client  -C ../../ton-lite-client-test1.config.json -c"sendfile gamble-query.boc"

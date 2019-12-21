@@ -107,7 +107,7 @@ Option `-l` can be used multiple times to define multiple prizes. For Blackjack,
 For Blackjack (and other games with arbitrary bids), `<min-tickets>`, `<max-tickets>` fields should not be used. `<ticket-price>` is used as a minimum size of a bid.
 
 For example:
-`./new-game.fif lottery-game 1 0 -e 1577825999 -n 100 -x 1000 -i 500 -t 1 -p 1 500 0 1 1 100 -p 2 0 0.5 100 100 100 -p 3 2 0 100 50 60`
+`./new-game.fif lottery-game 1 0 -e 1577825999 -n 100 -x 1000 -i 500 -t 1 -l 1 500 0 1 1 100 -l 2 0 0.5 100 100 100 -l 3 2 0 100 50 60`
 Create a lottery that ends on December 31st of 2019, with a minimum of 100 and a maximum of 1000 participants. One ticket has a price of 1 Gram. The initial size of a prize fund is 500 Grams, this is a Jackpot, which will be given with a 1% probabiltity. Additionally, there's 100 prizes with each one equal to 0.5% of the total prize fund (i.e. 50% in total), and 50 prizes 2 Grams each (100 Grams total), but each of these 50 prizes has only 60% probability (so in reality there will be less than 50 prizes).
 
 `./new-game.fif blackjack-game 2 64 -t 10 -p 1 2 200 -p 2 0 100`

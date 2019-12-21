@@ -63,7 +63,7 @@ dictnew =: Prizes
     rot $>GR Gram,            // fixed-amount
     swap parse-percent 32 u,  // prize-fund-percent
     swap parse-int // prize-id
-    Prizes 32 b>udict! drop =: Prizes } option-long()
+    @' Prizes 32 b>udict! drop =: Prizes } option-long()
   "-l" "--lottery-prize" 6 { <b
     0 8 u,                      // prize-type, unused yet
     0 64 u,                     // prize-flags, unused yet
@@ -73,7 +73,7 @@ dictnew =: Prizes
     rot parse-int 32 u,         // ticket-count
     swap parse-percent 32 u,    // per-ticket-probability
     swap parse-int // prize-id
-    Prizes 32 b>udict! drop =: Prizes } option-long()
+    @' Prizes 32 b>udict! drop =: Prizes } option-long()
 
   1 { =: BaseFile } nth-argument()
   2 { parse-int =: SeqNo } nth-argument()
