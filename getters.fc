@@ -9,8 +9,8 @@ tuple game_tuple(int game_type, int game_flags, int start_time, int end_time,
 tuple participant_tuple(int player_pubkey, int entry_wc, int entry_addr, int entry_amount, int entry_tickets)
   asm(player_pubkey entry_wc entry_addr entry_amount entry_tickets) "5 TUPLE";
 
-tuple prize_tuple(int prize_type, int prize_flags, int fixed_part, int fund_percentage_part, int per_prize_probability, int ticket_count, int per_ticket_probability)
-  asm(prize_type prize_flags fixed_part fund_percentage_part per_prize_probability ticket_count per_ticket_probability) "7 TUPLE";
+tuple prize_tuple(int prize_id, int prize_type, int prize_flags, int fixed_part, int fund_percentage_part, int per_prize_probability, int ticket_count, int per_ticket_probability)
+  asm(prize_id prize_type prize_flags fixed_part fund_percentage_part per_prize_probability ticket_count per_ticket_probability) "8 TUPLE";
 
 ;; Returns owner's pubkey
 
@@ -98,7 +98,7 @@ _ prizes(int game_id) method_id {
           fixed_part, fund_percentage_part
         ) = prize~load_prize();
       }
-      l = cons(prize_tuple(prize_type, prize_flags, 
+      l = cons(prize_tuple(prize_id, prize_type, prize_flags, 
         fixed_part, fund_percentage_part, 
         per_prize_probability, ticket_count, per_ticket_probability), l);
     }

@@ -1358,8 +1358,9 @@ PROGRAM{
           3 3 BLKSWAP
           -ROT
         }>
-        6 ROLL
-        7 TUPLE
+        s7 PUSH
+        s0 s7 XCHG
+        8 TUPLE
         s0 s3 XCHG2
         CONS
       }>ELSE<{
