@@ -1,4 +1,7 @@
 "common-utils.fif" include
+"Color.fif" include
+
+make-esc"[47m" ^BgWhite
 
 {
   <b
@@ -31,3 +34,28 @@
     dict@+
   s>
 } : parse-data()
+
+
+{
+  4 /mod
+  ^BgWhite
+  dup 0 = { ^Black } if
+  dup 1 = { ^Red } if
+  dup 2 = { ^Red } if
+  dup 3 = { ^Black } if
+  swap
+  ." "
+  // 0=2, 1=3, 2=4 ... 8=10, 9=J, 10=Q, 11=K, 12=A
+  dup 9 < { 2 + ._ } if
+  dup 9 = { drop ."J" } if
+  dup 10 = { drop ."Q" } if
+  dup 11 = { drop ."K" } if
+  dup 12 = { drop ."A" } if
+  dup 0 = { ."♣" } if
+  dup 1 = { ."♦" } if
+  dup 2 = { ."♥" } if
+  dup 3 = { ."♠" } if
+  drop
+  ." "
+  ^reset
+} : print-card()

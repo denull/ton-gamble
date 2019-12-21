@@ -219,8 +219,16 @@
     0 PUSHINT
     0 PUSHINT
     0 PUSHINT
-    now PUSHINT
-    4 TUPLE
+    now PUSHINT // param 3, current unixtime
+    0 PUSHINT //  param 4, blocklt
+    now PUSHINT // param 5, logical time
+    now PUSHINT // param 6, randseed
+    1000 PUSHINT // balance
+    0 PUSHINT // other currencies
+    2 TUPLE // param 7, balance
+    // param 8, myaddr
+    // param 9, configroot
+    8 TUPLE
     SINGLE
     c7 POP
   }>s rot <s |+ swap
