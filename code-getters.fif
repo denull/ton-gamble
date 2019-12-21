@@ -319,94 +319,59 @@ PROGRAM{
     s8 s7 PUXC
     blackjack_is_over CALLDICT
     DUP
-    2 EQINT
+    0 GTINT
     IF:<{
-      s4 POP
       NEWDICT
-      NEWC
-      s8 PUSH
-      STGRAMS
-      32 PUSHPOW2DEC
-      ROT
       32 PUSHINT
-      DICTUSETB
-      OVER
-      NEWC
-      8 STU
-      s9 s(-1) PUXC
-      256 STU
-      s8 PUSH
-      STGRAMS
-      s1 s6 XCHG
-      32 STU
-      s1 s6 XCHG
-      STDICT
-      s6 PUSH
-      STGRAMS
-      s1 s4 XCHG
-      STDICT
-      s0 s3 s3 XCHG3
-      8 PUSHPOW2
-      DICTUSETB
-      s4 s3 XCHG2
-      send_money CALLDICT
-    }>ELSE<{
-      DUP
-      1 EQINT
+      s2 s6 s6 PUXC2
+      DICTUGET
+      NULLSWAPIFNOT
       IF:<{
-        NEWDICT
-        1 PUSHINT
-        s0 s6 XCHG2
+        ~load_prize CALLDICT
+        s2 POP
+        s2 POP
+        s2 POP
+        s9 s1 PUXC
+        MUL
+        1000000 PUSHINT
+        DIV
+        ADD
+        NEWC
+        OVER
+        STGRAMS
+        SWAP
         32 PUSHINT
-        DICTUGET
-        NULLSWAPIFNOT
-        IF:<{
-          ~load_prize CALLDICT
-          s2 POP
-          s2 POP
-          s2 POP
-          s9 s1 PUXC
-          MUL
-          1000000 PUSHINT
-          DIV
-          ADD
-          NEWC
-          OVER
-          STGRAMS
-          1 PUSHINT
-          s1 s0 s7 XCHG3
-          32 PUSHINT
-          DICTUSETB
-          s2 PUSH
-          NEWC
-          8 STU
-          s10 s(-1) PUXC
-          256 STU
-          s0 s9 XCHG2
-          STGRAMS
-          s1 s6 XCHG
-          32 STU
-          s1 s6 XCHG
-          STDICT
-          s3 PUSH
-          STGRAMS
-          s1 s6 XCHG
-          STDICT
-          s0 s5 s5 XCHG3
-          8 PUSHPOW2
-          DICTUSETB
-          s4 s3 XCHG2
-          send_money CALLDICT
-        }>ELSE<{
-          s1 s9 XCHG
-          s4 s8 XCHG
-          8 BLKDROP
-        }>
+        s3 s7 s7 PUXC2
+        DICTUSETB
+        s2 PUSH
+        NEWC
+        8 STU
+        s10 s(-1) PUXC
+        256 STU
+        s0 s9 XCHG2
+        STGRAMS
+        s1 s6 XCHG
+        32 STU
+        s1 s6 XCHG
+        STDICT
+        s3 PUSH
+        STGRAMS
+        s1 s6 XCHG
+        STDICT
+        s0 s5 s5 XCHG3
+        8 PUSHPOW2
+        DICTUSETB
+        s4 s3 XCHG2
+        send_money CALLDICT
       }>ELSE<{
-        s0 s8 XCHG
-        s3 s7 XCHG
-        7 BLKDROP
+        s1 s9 XCHG
+        s4 s8 XCHG
+        8 BLKDROP
       }>
+    }>ELSE<{
+      s0 s8 XCHG
+      s3 s7 XCHG
+      7 BLKDROP
     }>
     SWAP
     0 EQINT
@@ -942,16 +907,22 @@ PROGRAM{
         64 PUSHINT
         send_message_back CALLDICT
       }>
-      s7 s15 PUSH2
+      s13 PUSH
+      63 GTINT
+      IF:<{
+        s15 POP
+        1 PUSHINT
+      }>ELSE<{
+        s0 s15 XCHG
+      }>
+      s7 s0 PUSH2
       ADD
       s9 PUSH
       GREATER
       IF:<{
-        s15 POP
+        DROP
         s7 s6 PUSH2
         SUB
-      }>ELSE<{
-        s0 s15 XCHG
       }>
       DUP
       1 LESSINT
@@ -1265,21 +1236,23 @@ PROGRAM{
             ACCEPT
             ~load_participant CALLDICT
             s5 POP
-            s1 s4 XCHG
+            s0 s4 XCHG
             18 s() PUSH
-            SWAP
             18 s() PUSH
-            SWAP
-            s0 22 s() XCHG
+            22 s() PUSH
             ~blackjack_apply_move CALLDICT
+            s1 21 s() XCHG
+            OR
             18 s() PUSH
             s0 s2 XCHG
             18 s() PUSH
-            s2 s9 s1 XCPU2
+            s0 s2 XCHG
+            22 s() PUSH
+            s10 s2 PUXC
             s0 s9 XCHG
             30 s() PUSH
-            s8 s7 s9 PUSH3
-            28 s() PUSH
+            s8 s7 s10 PUSH3
+            s12 PUSH
             blackjack_check_state CALLDICT
             SWAP
             IF:<{
@@ -1287,10 +1260,10 @@ PROGRAM{
               s1 s3 XCHG
               8 STU
               256 STU
-              ROT
+              s0 s3 XCHG2
               STGRAMS
-              s1 17 s() XCHG
               32 STU
+              s1 16 s() XCHG
               STDICT
               s0 s2 XCHG
               s1 21 s() XCHG

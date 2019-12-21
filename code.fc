@@ -120,7 +120,7 @@
   return (max_sum, max_sum - 10 < min_sum);
 }
 
-(int) blackjack_is_over(int game_type, int game_flags, cell player_state, int dealer_hit) {
+(int) blackjack_is_over(int game_type, int game_flags, cell player_state, int anybody_hit) {
   var (player, player_hard) = blackjack_hand_value(player_state, 1, 21);
   if (player > 21) {
     return -1;
@@ -138,7 +138,7 @@
   } elseif (dealer_blackjack) {
     return -1;
   } else {
-    ifnot (dealer_hit) {
+    ifnot (anybody_hit) {
       if (player == dealer) {
         return 2;
       } elseif (player > dealer) {
@@ -153,33 +153,19 @@
 }
 
 ;; Check if player is still in a game of Blackjack (also gives a prize, if player if won)
-(int, cell) blackjack_check_state(int game_type, int game_flags, cell player_state, int dealer_hit, cell prizes, cell results, int player_pubkey, int player_wc, int player_addr, int player_bid, int player_tickets) {
-  var outcome = blackjack_is_over(game_type, game_flags, player_state, dealer_hit);
-  if (outcome == 2) {
-    ;; A tie, just return the bid
+(int, cell) blackjack_check_state(int game_type, int game_flags, cell player_state, int anybody_hit, cell prizes, cell results, int player_pubkey, int player_wc, int player_addr, int player_bid, int player_tickets) {
+  var outcome = blackjack_is_over(game_type, game_flags, player_state, anybody_hit);
+  if (outcome > 0) {
+    ;; Either player wins (outcome = 1) or it's a tie (outcome = 2), pay the corresponding prize
     var entry_prizes = new_dict();
-    entry_prizes~udict_set_builder(32, 0xffffffff, begin_cell().store_grams(player_bid));
-    results~udict_set_builder(256, player_pubkey, begin_cell()
-      .store_uint(player_wc, 8)
-      .store_uint(player_addr, 256)
-      .store_grams(player_bid)
-      .store_uint(player_tickets, 32)
-      .store_dict(player_state)
-      .store_grams(player_bid)
-      .store_dict(entry_prizes)
-    );
-    send_money(player_wc, player_addr, player_bid);
-  } elseif (outcome == 1) {
-    ;; Player wins, pay the prize
-    var entry_prizes = new_dict();
-    var (prize, f) = prizes.udict_get?(32, 1); ;; As a single-player game, Blackjack should contain a single prize
+    var (prize, f) = prizes.udict_get?(32, outcome); ;; As a single-player game, Blackjack should contain a single prize
     if (f) {
       var (prize_type, prize_flags, fixed_part, fund_percentage_part) = prize~load_prize();
 
       ;; Calculate actual prize size (some fixed part + predefined percentage of the total prize fund)
       var prize_amount = fixed_part + player_bid * fund_percentage_part / 1000000;
 
-      entry_prizes~udict_set_builder(32, 1, begin_cell().store_grams(prize_amount));
+      entry_prizes~udict_set_builder(32, outcome, begin_cell().store_grams(prize_amount));
       results~udict_set_builder(256, player_pubkey, begin_cell()
         .store_uint(player_wc, 8)
         .store_uint(player_addr, 256)
@@ -432,6 +418,9 @@ _ pack_state(int seqno, int owner_pubkey, int reserved_balance, cell games) inli
     ifnot (end_time > now()) { ;; => game is already finished
       return send_message_back(src_addr_slice, 0xfffffffe, query_id, op, 47, 0, 64);
     }
+    if (game_type >= 64) {
+      ticket_count = 1;
+    }
     if (cur_tickets + ticket_count > max_tickets) {
       ticket_count = max_tickets - cur_tickets;
     }
@@ -556,7 +545,7 @@ _ pack_state(int seqno, int owner_pubkey, int reserved_balance, cell games) inli
       ;; Blackjack: hit/stand
       var (entry_wc, entry_addr, entry_amount, entry_tickets, entry_state) = entry~load_participant();
       var dealer_hit = entry_state~blackjack_apply_move(game_type, game_flags, action);
-      (var is_in_game, results) = blackjack_check_state(game_type, game_flags, entry_state, dealer_hit, prizes, results, current_pubkey, entry_wc, entry_addr, entry_amount, entry_tickets);
+      (var is_in_game, results) = blackjack_check_state(game_type, game_flags, entry_state, action | dealer_hit, prizes, results, current_pubkey, entry_wc, entry_addr, entry_amount, entry_tickets);
       if (is_in_game) {
         participants~udict_set_builder(256, current_pubkey, begin_cell()
           .store_uint(entry_wc, 8)

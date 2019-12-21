@@ -102,14 +102,15 @@ Additional options are:
 * `-l <prize-id> <fixed-amount> <prize-fund-percent> <per-prize-probability> <ticket-count> <per-ticket-probability>`
   Defines a prize in a lottery (see -p option above) with the probability of giving out this prize at all, number of tickets that can possibly receive, and probability to receive it for each ticket.
 
-Option `-l` can be used multiple times to define multiple prizes. For Blackjack, a `-p` option should used exactly once with a `<prize-id>=1`.
+Option `-l` can be used multiple times to define multiple prizes. For Blackjack, a `-p` option should used exactly twice: to define prizes for a win (`prize_id=1`) and for a tie (`prize_id=2`). Prize for a tie is usually equal to 100% of the "ticket price" (player's bid).
+
 For Blackjack (and other games with arbitrary bids), `<min-tickets>`, `<max-tickets>` fields should not be used. `<ticket-price>` is used as a minimum size of a bid.
 
 For example:
 `./new-game.fif lottery-game 1 0 -e 1577825999 -n 100 -x 1000 -i 500 -t 1 -p 1 500 0 1 1 100 -p 2 0 0.5 100 100 100 -p 3 2 0 100 50 60`
 Create a lottery that ends on December 31st of 2019, with a minimum of 100 and a maximum of 1000 participants. One ticket has a price of 1 Gram. The initial size of a prize fund is 500 Grams, this is a Jackpot, which will be given with a 1% probabiltity. Additionally, there's 100 prizes with each one equal to 0.5% of the total prize fund (i.e. 50% in total), and 50 prizes 2 Grams each (100 Grams total), but each of these 50 prizes has only 60% probability (so in reality there will be less than 50 prizes).
 
-`./new-game.fif blackjack-game 2 64 -t 10 -p 1 2 200`
+`./new-game.fif blackjack-game 2 64 -t 10 -p 1 2 200 -p 2 0 100`
 Create a game of Blackjack, with a minimum bid equal to 10 Grams, and a prize equal to 2 Grams + double your bid. There's no time restriction (you can play at any time, until the owner cancels this game).
 
 ## Canceling/deleting a game

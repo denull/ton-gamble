@@ -41,7 +41,7 @@
 0 =: StartTime
 0xffffffff =: EndTime
 1 =: MinTickets
-1 =: MaxTickets
+0xffffffff =: MaxTickets
 0 =: TicketPrice
 0 =: InitialFund
 0 =: RepeatCount
