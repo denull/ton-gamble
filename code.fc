@@ -143,7 +143,7 @@
       var (prize_type, prize_flags, fixed_part, fund_percentage_part) = prize~load_prize();
 
       ;; Calculate actual prize size (some fixed part + predefined percentage of the total prize fund)
-      var prize_amount = fixed_part + player_bid * fund_percentage_part / 1000000000;
+      var prize_amount = fixed_part + player_bid * fund_percentage_part / 1000000;
 
       ;; Send the prize to the player
       send_money(player_wc, player_addr, prize_amount);
@@ -200,10 +200,10 @@
       ) = prize~load_random_prize();
 
       ;; Calculate actual prize size (some fixed part + predefined percentage of the total prize fund)
-      var prize_amount = fixed_part + prize_fund * fund_percentage_part / 1000000000;
+      var prize_amount = fixed_part + prize_fund * fund_percentage_part / 1000000;
       
       ;; First, determine if this prize should be given at all (like a jackpot)
-      if (rand(1000000000) <= per_prize_probability) {
+      if (rand(1000000) <= per_prize_probability) {
         var tickets = new_dict();
         var entry_pubkey = -1;
         var total_tickets = 0;
@@ -221,7 +221,7 @@
         ;; Repeatedly give out this prize (if there's enough tickets left)
         while (total_tickets & (ticket_count > 0)) {
           ;; Now check if this instance of this prize should be given out
-          if (rand(1000000000) <= per_ticket_probability) {
+          if (rand(1000000) <= per_ticket_probability) {
             ;; Select a random ticket (without this prize yet) using roulette-wheel principle
             var current_index = 0;
             var target_index = rand(total_tickets);

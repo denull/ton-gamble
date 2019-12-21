@@ -32,9 +32,9 @@
 
 // == Parsing command-line arguments
 
-10000000 constant TenM
-{ TenM swap */r } : Percent*/
-{ TenM * } : Percent*
+10000 constant TenK
+{ TenK swap */r } : Percent*/
+{ TenK * } : Percent*
 { (number) ?dup 0= abort"not a valid percentage" 1- ' Percent*/ ' Percent* cond } : parse-percent
 
 0 =: GameFlags
@@ -63,7 +63,7 @@ dictnew =: Prizes
     rot $>GR Gram,            // fixed-amount
     swap parse-percent 32 u,  // prize-fund-percent
     swap parse-int // prize-id
-    Prizes 8 b>udict! drop =: Prizes } option-long()
+    Prizes 32 b>udict! drop =: Prizes } option-long()
   "-l" "--lottery-prize" 6 { <b
     0 8 u,                      // prize-type, unused yet
     0 64 u,                     // prize-flags, unused yet
@@ -73,7 +73,7 @@ dictnew =: Prizes
     rot parse-int 32 u,         // ticket-count
     swap parse-percent 32 u,    // per-ticket-probability
     swap parse-int // prize-id
-    Prizes 8 b>udict! drop =: Prizes } option-long()
+    Prizes 32 b>udict! drop =: Prizes } option-long()
 
   1 { =: BaseFile } nth-argument()
   2 { parse-int =: SeqNo } nth-argument()
@@ -93,7 +93,7 @@ BaseFile +".pk" load-keypair
 =: PrivateKey
 =: PublicKey
 
-."Creating new game #" GameId . ."of type " GameType cr
+."Creating new game #" GameId . ."of type " GameType . cr
 
 <b
   GameType 8 u,
