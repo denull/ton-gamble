@@ -244,11 +244,11 @@
           if (f) {
             var (entry_wc, entry_addr, entry_amount, entry_tickets, entry_state) = entry~load_participant();
             tickets~udict_set_builder(256, entry_pubkey, begin_cell()
-              .store_int(entry_wc, 8)
-              .store_uint(entry_addr, 256)
+              .store_int(entry_wc, 8).store_uint(entry_addr, 256)
               .store_grams(entry_amount)
               .store_uint(entry_tickets, 32)
               .store_dict(entry_state)
+              .store_uint(entry_tickets, 32)
             );
             total_tickets += entry_tickets;
           }
@@ -266,7 +266,8 @@
               (entry_pubkey, var entry, var f) = tickets.udict_get_next?(256, entry_pubkey);
               if (f) {
                 var (entry_wc, entry_addr, entry_amount, entry_tickets, entry_state) = entry~load_participant();
-                if ((target_index >= current_index) & (target_index < current_index + entry_tickets)) {
+                var tickets_left = entry~load_uint(32);
+                if ((target_index >= current_index) & (target_index < current_index + tickets_left)) {
                   ;; If we're inside the winning sector of the roulette wheel, add this prize to this participant's balance
                   var (winning_entry, winning_found) = results.udict_get?(256, entry_addr);
                   var (entry_prize_total, entry_prizes) = (0, new_dict());
@@ -276,8 +277,7 @@
                   entry_prize_total += prize_amount;
                   entry_prizes~udict_set_builder(32, prize_id, begin_cell().store_grams(prize_amount));
                   results~udict_set_builder(256, entry_pubkey, begin_cell()
-                    .store_int(entry_wc, 8)
-                    .store_uint(entry_addr, 256)
+                    .store_int(entry_wc, 8).store_uint(entry_addr, 256)
                     .store_grams(entry_amount)
                     .store_uint(entry_tickets, 32)
                     .store_dict(entry_state)
@@ -285,17 +285,15 @@
                     .store_dict(entry_prizes)
                   );
                   tickets~udict_set_builder(256, entry_pubkey, begin_cell()
-                    .store_int(entry_wc, 8)
-                    .store_uint(entry_addr, 256)
+                    .store_int(entry_wc, 8).store_uint(entry_addr, 256)
                     .store_grams(entry_amount)
-                    .store_uint(entry_tickets - 1, 32)
+                    .store_uint(entry_tickets, 32)
                     .store_dict(entry_state)
-                    .store_grams(entry_prize_total)
-                    .store_dict(entry_prizes)
+                    .store_uint(tickets_left - 1, 32)
                   );
                   f = false;
                 } else {
-                  current_index += entry_tickets;
+                  current_index += tickets_left;
                 }
               }
             } until (~ f);

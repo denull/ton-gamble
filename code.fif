@@ -510,6 +510,8 @@ PROGRAM{
               32 STU
               s1 s2 XCHG
               STDICT
+              s1 s(-1) PUXC
+              32 STU
               SWAP
               8 PUSHPOW2
               s3 s6 s6 PUXC2
@@ -549,17 +551,20 @@ PROGRAM{
                 IF:<{
                   s0 s2 XCHG
                   ~load_participant CALLDICT
-                  s5 POP
-                  s7 s8 PUSH2
+                  s0 s5 XCHG
+                  32 LDU
+                  DROP
+                  s8 s9 PUSH2
                   GEQ
-                  s9 s1 PUSH2
+                  s10 s1 PUSH2
                   ADD
-                  s9 s(-1) PUXC
+                  s10 s(-1) PUXC
                   LESS
                   AND
                   IF:<{
-                    s6 POP
-                    s1 s15 PUSH2
+                    s7 POP
+                    s2 PUSH
+                    17 s() PUSH
                     8 PUSHPOW2
                     DICTUGET
                     NULLSWAPIFNOT
@@ -567,29 +572,22 @@ PROGRAM{
                     NEWDICT
                     s0 s2 XCHG
                     IF:<{
-                      s2 s6 XCHG
-                      6 BLKDROP
-                      s2 POP
-                      SWAP
+                      s2 s7 XCHG
+                      7 BLKDROP
                       ~load_result CALLDICT
                       s7 POP
                     }>ELSE<{
-                      s7 s8 XCHG
-                      s1 s7 XCHG
-                      s5 s6 XCHG
-                      s4 s5 XCHG
-                      s3 s4 XCHG
-                      s3 s0 s3 XCHG3
+                      s7 s0 s7 XCHG3
                       DROP
                     }>
-                    s14 PUSH
+                    s15 PUSH
                     ADD
                     NEWC
-                    s15 PUSH
+                    16 s() PUSH
                     STGRAMS
                     SWAP
                     32 PUSHINT
-                    17 s() PUSH
+                    18 s() PUSH
                     s0 s9 s9 XCHG3
                     DICTUSETB
                     s5 PUSH
@@ -603,50 +601,51 @@ PROGRAM{
                     32 STU
                     s2 s(-1) PUXC
                     STDICT
-                    s7 PUSH
+                    s0 s7 XCHG2
                     STGRAMS
-                    s1 s(-1) PUXC
+                    s1 s6 XCHG
                     STDICT
                     SWAP
                     8 PUSHPOW2
-                    s9 s(-1) s0 PUXC2
-                    s1 20 s() XCHG
-                    s0 20 s() XCHG
+                    s7 s(-1) s0 PUXC2
+                    s1 19 s() XCHG
+                    s0 19 s() XCHG
                     DICTUSETB
-                    s0 s2 XCHG
+                    s0 s6 XCHG
                     DEC
                     NEWC
-                    s1 s6 XCHG
-                    8 STI
                     s1 s4 XCHG
+                    8 STI
+                    s1 s2 XCHG
                     256 STU
-                    ROT
+                    SWAP
                     STGRAMS
-                    s1 s3 XCHG
+                    s1 s14 XCHG
                     32 STU
                     STDICT
-                    ROT
-                    STGRAMS
                     s1 s12 XCHG
-                    STDICT
+                    32 STU
                     SWAP
                     8 PUSHPOW2
-                    s1 s6 s6 PUXC2
+                    s12 s6 s6 PUXC2
                     DICTUSETB
                     FALSE
                   }>ELSE<{
-                    s0 s4 XCHG
-                    4 BLKDROP
+                    s0 s5 XCHG
+                    5 BLKDROP
                     s1 s4 XCHG
                     ADD
+                    s3 s11 XCHG
                     s3 s5 XCHG
                     s3 s3 XCHG2
                   }>
                 }>ELSE<{
+                  s1 s12 XCHG
                   s6 s0 s6 XCHG3
                   DROP
                 }>
                 NOT
+                s5 s11 XCHG
                 s1 s5 XCHG
               }>
               3 BLKDROP
