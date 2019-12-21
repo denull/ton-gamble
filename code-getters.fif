@@ -1478,8 +1478,9 @@ PROGRAM{
         ~load_game_fields CALLDICT
         4 BLKDROP
         s11 POP
-        10 ROLL
-        11 TUPLE
+        s11 PUSH
+        s0 s11 XCHG
+        12 TUPLE
         s0 s3 XCHG2
         CONS
       }>ELSE<{

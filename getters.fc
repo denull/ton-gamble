@@ -1,10 +1,10 @@
 ;; These are useful methods, however they take precious bytes of storage.
 ;; It's still possible to call them w/o uploading to TON.
 
-tuple game_tuple(int game_type, int game_flags, int start_time, int end_time,
+tuple game_tuple(int game_id, int game_type, int game_flags, int start_time, int end_time,
     int min_tickets, int max_tickets, int cur_tickets,
     int ticket_price, int prize_fund, int repeat_count, int repeat_delay)
-  asm(game_type game_flags start_time end_time min_tickets max_tickets cur_tickets ticket_price prize_fund repeat_count repeat_delay) "11 TUPLE";
+  asm(game_id game_type game_flags start_time end_time min_tickets max_tickets cur_tickets ticket_price prize_fund repeat_count repeat_delay) "12 TUPLE";
 
 tuple participant_tuple(int player_pubkey, int entry_wc, int entry_addr, int entry_amount, int entry_tickets)
   asm(player_pubkey entry_wc entry_addr entry_amount entry_tickets) "5 TUPLE";
@@ -51,7 +51,7 @@ _ games() method_id {
         ticket_price, prize_fund, repeat_count, repeat_delay,
         prizes, participants, results, game_state
       ) = game~load_game_fields();
-      l = cons(game_tuple(game_type, game_flags, start_time, end_time,
+      l = cons(game_tuple(id, game_type, game_flags, start_time, end_time,
         min_tickets, max_tickets, cur_tickets,
         ticket_price, prize_fund, repeat_count, repeat_delay), l);
     }
