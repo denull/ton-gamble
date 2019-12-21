@@ -33,7 +33,11 @@ ContractData parse-data()
 Games 32 {
   ."    #" swap ._ .":" cr
   8 u@+ over  ."    ┌  game_type:     " . cr
-  64 u@+ swap ."    │  game_flags:    " . cr
+  64 u@+ swap ."    │  game_flags:    " dup .
+    0x8000000000000000 and {
+      ."(archived)"
+    } if
+   cr
   32 u@+ swap ."    │  start_time:    " . cr
   32 u@+ swap ."    │  end_time:      " . cr
   32 u@+ swap ."    │  min_tickets:   " . cr

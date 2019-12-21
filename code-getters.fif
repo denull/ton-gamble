@@ -140,7 +140,7 @@ PROGRAM{
     4 -ROLL
   }>
   ~load_participant PROC:<{
-    8 LDU
+    8 LDI
     256 LDU
     LDGRAMS
     32 LDU
@@ -148,7 +148,7 @@ PROGRAM{
     5 -ROLL
   }>
   ~load_result PROC:<{
-    8 LDU
+    8 LDI
     256 LDU
     LDGRAMS
     32 LDU
@@ -174,7 +174,7 @@ PROGRAM{
     NEWC
     9 STU
     s1 s5 XCHG
-    8 STU
+    8 STI
     s1 s3 XCHG
     256 STU
     SWAP
@@ -345,7 +345,7 @@ PROGRAM{
         DICTUSETB
         s2 PUSH
         NEWC
-        8 STU
+        8 STI
         s10 s(-1) PUXC
         256 STU
         s0 s9 XCHG2
@@ -507,7 +507,7 @@ PROGRAM{
               s5 POP
               NEWC
               s1 s4 XCHG
-              8 STU
+              8 STI
               s1 s2 XCHG
               256 STU
               SWAP
@@ -600,7 +600,7 @@ PROGRAM{
                     DICTUSETB
                     s5 PUSH
                     NEWC
-                    8 STU
+                    8 STI
                     s5 s(-1) PUXC
                     256 STU
                     s4 PUSH
@@ -623,7 +623,7 @@ PROGRAM{
                     DEC
                     NEWC
                     s1 s6 XCHG
-                    8 STU
+                    8 STI
                     s1 s4 XCHG
                     256 STU
                     ROT
@@ -710,7 +710,7 @@ PROGRAM{
       DUP
       IF:<{
         s0 s2 XCHG
-        8 LDU
+        8 LDI
         256 LDU
         LDGRAMS
         DROP
@@ -1059,7 +1059,7 @@ PROGRAM{
       IF:<{
         NEWC
         s1 24 s() XCHG
-        8 STU
+        8 STI
         s1 25 s() XCHG
         256 STU
         s0 s3 XCHG2
@@ -1258,7 +1258,7 @@ PROGRAM{
             IF:<{
               NEWC
               s1 s3 XCHG
-              8 STU
+              8 STI
               256 STU
               s0 s3 XCHG2
               STGRAMS

@@ -50,7 +50,7 @@
 }
 
 (slice, (int, int, int, int, cell)) ~load_participant(slice participant) {
-  var fields = (participant~load_uint(8), participant~load_uint(256),  ;; participant_wc, participant_addr,
+  var fields = (participant~load_int(8), participant~load_uint(256),   ;; participant_wc, participant_addr,
     participant~load_grams(),                                          ;; received_amount
     participant~load_uint(32),                                         ;; ticket_count
     participant~load_dict()                                            ;; participant_state
@@ -59,7 +59,7 @@
 }
 
 (slice, (int, int, int, int, cell, int, cell)) ~load_result(slice result) {
-  var fields = (result~load_uint(8), result~load_uint(256),       ;; participant_wc, participant_addr,
+  var fields = (result~load_int(8), result~load_uint(256),        ;; participant_wc, participant_addr,
     result~load_grams(),                                          ;; received_amount
     result~load_uint(32),                                         ;; ticket_count
     result~load_dict(),                                           ;; participant_state
@@ -81,7 +81,7 @@
 () send_money(int wc, int addr, int amount) impure {
   send_raw_message(begin_cell()
     .store_uint(0xc4, 9)
-    .store_uint(wc, 8)
+    .store_int(wc, 8)
     .store_uint(addr, 256)
     .store_grams(amount)
     .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
@@ -167,7 +167,7 @@
 
       entry_prizes~udict_set_builder(32, outcome, begin_cell().store_grams(prize_amount));
       results~udict_set_builder(256, player_pubkey, begin_cell()
-        .store_uint(player_wc, 8)
+        .store_int(player_wc, 8)
         .store_uint(player_addr, 256)
         .store_grams(player_bid)
         .store_uint(player_tickets, 32)
@@ -244,7 +244,7 @@
           if (f) {
             var (entry_wc, entry_addr, entry_amount, entry_tickets, entry_state) = entry~load_participant();
             tickets~udict_set_builder(256, entry_pubkey, begin_cell()
-              .store_uint(entry_wc, 8)
+              .store_int(entry_wc, 8)
               .store_uint(entry_addr, 256)
               .store_grams(entry_amount)
               .store_uint(entry_tickets, 32)
@@ -276,7 +276,7 @@
                   entry_prize_total += prize_amount;
                   entry_prizes~udict_set_builder(32, prize_id, begin_cell().store_grams(prize_amount));
                   results~udict_set_builder(256, entry_pubkey, begin_cell()
-                    .store_uint(entry_wc, 8)
+                    .store_int(entry_wc, 8)
                     .store_uint(entry_addr, 256)
                     .store_grams(entry_amount)
                     .store_uint(entry_tickets, 32)
@@ -285,7 +285,7 @@
                     .store_dict(entry_prizes)
                   );
                   tickets~udict_set_builder(256, entry_pubkey, begin_cell()
-                    .store_uint(entry_wc, 8)
+                    .store_int(entry_wc, 8)
                     .store_uint(entry_addr, 256)
                     .store_grams(entry_amount)
                     .store_uint(entry_tickets - 1, 32)
@@ -325,7 +325,7 @@
   do {
     (player_pubkey, var entry, var f) = participants.udict_get_next?(256, player_pubkey);
     if (f) {
-      var (player_wc, player_addr, received_amount) = (entry~load_uint(8), entry~load_uint(256), entry~load_grams());
+      var (player_wc, player_addr, received_amount) = (entry~load_int(8), entry~load_uint(256), entry~load_grams());
       send_money(player_wc, player_addr, received_amount);
     }
   } until (~ f);
@@ -456,7 +456,7 @@ _ pack_state(int seqno, int owner_pubkey, int reserved_balance, cell games) inli
 
     if (is_in_game) {
       participants~udict_set_builder(256, player_pubkey, begin_cell()
-        .store_uint(src_wc, 8)
+        .store_int(src_wc, 8)
         .store_uint(src_addr, 256)
         .store_grams(entry_amount)
         .store_uint(entry_tickets, 32)
@@ -548,7 +548,7 @@ _ pack_state(int seqno, int owner_pubkey, int reserved_balance, cell games) inli
       (var is_in_game, results) = blackjack_check_state(game_type, game_flags, entry_state, action | dealer_hit, prizes, results, current_pubkey, entry_wc, entry_addr, entry_amount, entry_tickets);
       if (is_in_game) {
         participants~udict_set_builder(256, current_pubkey, begin_cell()
-          .store_uint(entry_wc, 8)
+          .store_int(entry_wc, 8)
           .store_uint(entry_addr, 256)
           .store_grams(entry_amount)
           .store_uint(entry_tickets, 32)
