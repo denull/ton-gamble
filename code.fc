@@ -1,11 +1,11 @@
 (cell, ()) ~store_game(cell games, int game_id, int is_game_over, int game_type, int game_flags,
   int start_time, int end_time, int min_tickets, int max_tickets, int cur_tickets, int ticket_price, int prize_fund,
-  int repeat_count, int repeat_delay, cell prizes, cell participants, cell state) {
-  if (is_game_over & (repeat_count == 0)) {
-    ;; Remove game from state
-    games~udict_delete_get?(32, game_id);
-  } else {
-    if (is_game_over) {
+  int repeat_count, int repeat_delay, cell prizes, cell participants, cell results, cell state) {
+  if (is_game_over) {
+    if (repeat_count == 0) {
+      ;; Mark game as completed
+      game_flags = game_flags | 0x8000000000000000;
+    } else {
       ;; Decrease repeat count and restart the game
       repeat_count = repeat_count - 1;
       var next_start_time = now() + repeat_delay;
@@ -16,14 +16,14 @@
       cur_tickets = 0;
       prize_fund = 0;
     }
-    games~udict_set_builder(32, game_id, begin_cell()
-      .store_uint(game_type, 8).store_uint(game_flags, 64)
-      .store_uint(start_time, 32).store_uint(end_time, 32)
-      .store_uint(min_tickets, 32).store_uint(max_tickets, 32).store_uint(cur_tickets, 32)
-      .store_grams(ticket_price).store_grams(prize_fund)
-      .store_uint(repeat_count, 32).store_uint(repeat_delay, 32)
-      .store_dict(prizes).store_dict(participants).store_dict(state));
   }
+  games~udict_set_builder(32, game_id, begin_cell()
+    .store_uint(game_type, 8).store_uint(game_flags, 64)
+    .store_uint(start_time, 32).store_uint(end_time, 32)
+    .store_uint(min_tickets, 32).store_uint(max_tickets, 32).store_uint(cur_tickets, 32)
+    .store_grams(ticket_price).store_grams(prize_fund)
+    .store_uint(repeat_count, 32).store_uint(repeat_delay, 32)
+    .store_dict(prizes).store_dict(participants).store_dict(results).store_dict(state));
   return (games, ());
 }
 
@@ -56,6 +56,17 @@
     participant~load_dict()                                            ;; participant_state
   );  
   return (participant, fields);
+}
+
+(slice, (int, int, int, int, cell, int, cell)) ~load_result(slice result) {
+  var fields = (result~load_uint(8), result~load_uint(256),       ;; participant_wc, participant_addr,
+    result~load_grams(),                                          ;; received_amount
+    result~load_uint(32),                                         ;; ticket_count
+    result~load_dict(),                                           ;; participant_state
+    result~load_grams(),                                          ;; prize_total
+    result~load_dict()                                            ;; prizes (prize_id => prize_amount)
+  );  
+  return (result, fields);
 }
 
 ;; Additional fields for lotteries (prizes probabilities and/or ticket counts)
@@ -142,13 +153,25 @@
 }
 
 ;; Check if player is still in a game of Blackjack (also gives a prize, if player if won)
-(int) blackjack_check_state(int game_type, int game_flags, cell player_state, int dealer_hit, cell prizes, int player_wc, int player_addr, int player_bid) {
+(int, cell) blackjack_check_state(int game_type, int game_flags, cell player_state, int dealer_hit, cell prizes, cell results, int player_pubkey, int player_wc, int player_addr, int player_bid, int player_tickets) {
   var outcome = blackjack_is_over(game_type, game_flags, player_state, dealer_hit);
   if (outcome == 2) {
     ;; A tie, just return the bid
+    var entry_prizes = new_dict();
+    entry_prizes~udict_set_builder(32, 0xffffffff, begin_cell().store_grams(player_bid));
+    results~udict_set_builder(256, player_pubkey, begin_cell()
+      .store_uint(player_wc, 8)
+      .store_uint(player_addr, 256)
+      .store_grams(player_bid)
+      .store_uint(player_tickets, 32)
+      .store_dict(player_state)
+      .store_grams(player_bid)
+      .store_dict(entry_prizes)
+    );
     send_money(player_wc, player_addr, player_bid);
   } elseif (outcome == 1) {
     ;; Player wins, pay the prize
+    var entry_prizes = new_dict();
     var (prize, f) = prizes.udict_get?(32, 1); ;; As a single-player game, Blackjack should contain a single prize
     if (f) {
       var (prize_type, prize_flags, fixed_part, fund_percentage_part) = prize~load_prize();
@@ -156,12 +179,23 @@
       ;; Calculate actual prize size (some fixed part + predefined percentage of the total prize fund)
       var prize_amount = fixed_part + player_bid * fund_percentage_part / 1000000;
 
+      entry_prizes~udict_set_builder(32, 1, begin_cell().store_grams(prize_amount));
+      results~udict_set_builder(256, player_pubkey, begin_cell()
+        .store_uint(player_wc, 8)
+        .store_uint(player_addr, 256)
+        .store_grams(player_bid)
+        .store_uint(player_tickets, 32)
+        .store_dict(player_state)
+        .store_grams(prize_amount)
+        .store_dict(entry_prizes)
+      );
+
       ;; Send the prize to the player
       send_money(player_wc, player_addr, prize_amount);
     }
   }
   ;; outcome == -1 => Player loses, no money is sent
-  return outcome == 0;
+  return (outcome == 0, results);
 }
 
 ;; Applies player's action to a state in game (checking it for validity)
@@ -199,9 +233,9 @@
   return (player_state, (dealer_hit));
 }
 
-() lottery_raffle(cell prizes, cell entries, int prize_fund) impure {
+(cell) lottery_raffle(cell prizes, cell entries, int prize_fund) impure {
   var prize_id = -1;
-  var winnings = new_dict();
+  var results = new_dict();
   do {
     (prize_id, var prize, var f) = prizes.udict_get_next?(32, prize_id);
     if (f) {
@@ -223,8 +257,12 @@
           (entry_pubkey, var entry, var f) = entries.udict_get_next?(256, entry_pubkey);
           if (f) {
             var (entry_wc, entry_addr, entry_amount, entry_tickets, entry_state) = entry~load_participant();
-            tickets~udict_set_builder(256, entry_addr, begin_cell()
-              .store_uint(entry_wc, 8).store_uint(entry_tickets, 32)
+            tickets~udict_set_builder(256, entry_pubkey, begin_cell()
+              .store_uint(entry_wc, 8)
+              .store_uint(entry_addr, 256)
+              .store_grams(entry_amount)
+              .store_uint(entry_tickets, 32)
+              .store_dict(entry_state)
             );
             total_tickets += entry_tickets;
           }
@@ -237,24 +275,37 @@
             ;; Select a random ticket (without this prize yet) using roulette-wheel principle
             var current_index = 0;
             var target_index = rand(total_tickets);
-            var entry_addr = -1;
+            var entry_pubkey = -1;
             do {
-              (entry_addr, var entry, var f) = tickets.udict_get_next?(256, entry_addr);
+              (entry_pubkey, var entry, var f) = tickets.udict_get_next?(256, entry_pubkey);
               if (f) {
-                var (entry_wc, entry_tickets) = (entry~load_uint(8), entry~load_uint(32));
+                var (entry_wc, entry_addr, entry_amount, entry_tickets, entry_state) = entry~load_participant();
                 if ((target_index >= current_index) & (target_index < current_index + entry_tickets)) {
                   ;; If we're inside the winning sector of the roulette wheel, add this prize to this participant's balance
-                  var (winning_entry, winning_found) = winnings.udict_get?(256, entry_addr);
-                  var winning_amount = prize_amount;
+                  var (winning_entry, winning_found) = results.udict_get?(256, entry_addr);
+                  var (entry_prize_total, entry_prizes) = (0, new_dict());
                   if (winning_found) {
-                    winning_entry~skip_bits(8);
-                    winning_amount += winning_entry~load_grams();
+                    (entry_wc, entry_addr, entry_amount, entry_tickets, entry_state, entry_prize_total, entry_prizes) = winning_entry~load_result();
                   }
-                  winnings~udict_set_builder(256, entry_addr, begin_cell()
-                    .store_uint(entry_wc, 8).store_grams(winning_amount)
+                  entry_prize_total += prize_amount;
+                  entry_prizes~udict_set_builder(32, prize_id, begin_cell().store_grams(prize_amount));
+                  results~udict_set_builder(256, entry_pubkey, begin_cell()
+                    .store_uint(entry_wc, 8)
+                    .store_uint(entry_addr, 256)
+                    .store_grams(entry_amount)
+                    .store_uint(entry_tickets, 32)
+                    .store_dict(entry_state)
+                    .store_grams(entry_prize_total)
+                    .store_dict(entry_prizes)
                   );
-                  tickets~udict_set_builder(256, entry_addr, begin_cell()
-                    .store_uint(entry_wc, 8).store_uint(entry_tickets - 1, 32)
+                  tickets~udict_set_builder(256, entry_pubkey, begin_cell()
+                    .store_uint(entry_wc, 8)
+                    .store_uint(entry_addr, 256)
+                    .store_grams(entry_amount)
+                    .store_uint(entry_tickets - 1, 32)
+                    .store_dict(entry_state)
+                    .store_grams(entry_prize_total)
+                    .store_dict(entry_prizes)
                   );
                   f = false;
                 } else {
@@ -273,12 +324,14 @@
   ;; Now actually send all stored winnings
   var entry_addr = -1;
   do {
-    (entry_addr, var entry, var f) = winnings.udict_get_next?(256, entry_addr);
+    (entry_addr, var entry, var f) = results.udict_get_next?(256, entry_addr);
     if (f) {
-      var (entry_wc, winning_total) = (entry~load_uint(8), entry~load_grams());
-      send_money(entry_wc, entry_addr, winning_total);
+      var (entry_wc, entry_addr, entry_amount, entry_tickets, entry_state, entry_prize_total, entry_prizes) = entry~load_result();
+      send_money(entry_wc, entry_addr, entry_prize_total);
     }
   } until (~ f);
+
+  return (results);
 }
 
 () return_tickets(cell participants) impure {
@@ -310,13 +363,13 @@
   send_raw_message(msg.end_cell(), mode);
 }
 
-(slice, (int, int, int, int, int, int, int, int, int, int, int, cell, cell, cell)) ~load_game_fields(slice game) {
-  var fields = (game~load_uint(8), game~load_uint(64),          ;; game_type, game_flags
-    game~load_uint(32), game~load_uint(32),                     ;; start_time, end_time
-    game~load_uint(32), game~load_uint(32), game~load_uint(32), ;; min_tickets, max_tickets, cur_tickets
-    game~load_grams(), game~load_grams(),                       ;; ticket_price, prize_fund
-    game~load_uint(32), game~load_uint(32),                     ;; repeat_count, repeat_delay
-    game~load_dict(), game~load_dict(), game~load_dict()        ;; prizes, participants, game_state
+(slice, (int, int, int, int, int, int, int, int, int, int, int, cell, cell, cell, cell)) ~load_game_fields(slice game) {
+  var fields = (game~load_uint(8), game~load_uint(64),                      ;; game_type, game_flags
+    game~load_uint(32), game~load_uint(32),                                 ;; start_time, end_time
+    game~load_uint(32), game~load_uint(32), game~load_uint(32),             ;; min_tickets, max_tickets, cur_tickets
+    game~load_grams(), game~load_grams(),                                   ;; ticket_price, prize_fund
+    game~load_uint(32), game~load_uint(32),                                 ;; repeat_count, repeat_delay
+    game~load_dict(), game~load_dict(), game~load_dict(), game~load_dict()  ;; prizes, participants, results, game_state
   );
   return (game, fields);
 }
@@ -367,9 +420,12 @@ _ pack_state(int seqno, int owner_pubkey, int reserved_balance, cell games) inli
       game_type, game_flags, start_time, end_time,
       min_tickets, max_tickets, cur_tickets,
       ticket_price, prize_fund, repeat_count, repeat_delay,
-      prizes, participants, game_state
+      prizes, participants, results, game_state
     ) = game~load_game_fields();
 
+    if (game_flags & 0x8000000000000000) { ;; => game is archived (stored only for results)
+      return send_message_back(src_addr_slice, 0xfffffffe, query_id, op, 53, 0, 64);
+    }
     ifnot (start_time < now()) { ;; => game is not yet started
       return send_message_back(src_addr_slice, 0xfffffffe, query_id, op, 46, 0, 64);
     }
@@ -406,7 +462,7 @@ _ pack_state(int seqno, int owner_pubkey, int reserved_balance, cell games) inli
       is_game_over = (cur_tickets >= max_tickets);
     } elseif (game_type == 64) {
       ;; Blackjack can potentially end instantly (for that player), check for that
-      is_in_game = blackjack_check_state(game_type, game_flags, entry_state, true, prizes, entry_wc, entry_addr, entry_amount);
+      (is_in_game, results) = blackjack_check_state(game_type, game_flags, entry_state, true, prizes, results, player_pubkey, entry_wc, entry_addr, entry_amount, entry_tickets);
     }
 
     if (is_in_game) {
@@ -421,7 +477,7 @@ _ pack_state(int seqno, int owner_pubkey, int reserved_balance, cell games) inli
 
     if ((game_type == 0) & is_game_over) {
       ;; Give out prizes if game is instant (no player moves required, i.e. lottery)
-      lottery_raffle(prizes, participants, prize_fund);
+      results = lottery_raffle(prizes, participants, prize_fund);
     }
 
     games~store_game(game_id, is_game_over,
@@ -430,7 +486,7 @@ _ pack_state(int seqno, int owner_pubkey, int reserved_balance, cell games) inli
       min_tickets, max_tickets, cur_tickets,
       ticket_price, prize_fund,
       repeat_count, repeat_delay,
-      prizes, participants, game_state);
+      prizes, participants, results, game_state);
     set_data(pack_state(stored_seqno, owner_pubkey, reserved_balance, games));
     return ();
   }
@@ -469,7 +525,7 @@ _ pack_state(int seqno, int owner_pubkey, int reserved_balance, cell games) inli
       game_type, game_flags, start_time, end_time,
       min_tickets, max_tickets, cur_tickets,
       ticket_price, prize_fund, repeat_count, repeat_delay,
-      prizes, participants, game_state
+      prizes, participants, results, game_state
     ) = game~load_game_fields();
 
     var (entry, entry_found) = participants.udict_get?(256, current_pubkey);
@@ -486,21 +542,21 @@ _ pack_state(int seqno, int owner_pubkey, int reserved_balance, cell games) inli
         games~udict_delete_get?(32, game_id);
       } else {
         ;; Perform lottery
-        lottery_raffle(prizes, participants, prize_fund);
+        results = lottery_raffle(prizes, participants, prize_fund);
         games~store_game(game_id, true,
           game_type, game_flags, 
           start_time, end_time, 
           min_tickets, max_tickets, cur_tickets,
           ticket_price, prize_fund,
           repeat_count, repeat_delay,
-          prizes, participants, game_state);
+          prizes, participants, results, game_state);
       }
     } elseif (game_type == 64) {
       accept_message();
       ;; Blackjack: hit/stand
       var (entry_wc, entry_addr, entry_amount, entry_tickets, entry_state) = entry~load_participant();
       var dealer_hit = entry_state~blackjack_apply_move(game_type, game_flags, action);
-      var is_in_game = blackjack_check_state(game_type, game_flags, entry_state, dealer_hit, prizes, entry_wc, entry_addr, entry_amount);
+      (var is_in_game, results) = blackjack_check_state(game_type, game_flags, entry_state, dealer_hit, prizes, results, current_pubkey, entry_wc, entry_addr, entry_amount, entry_tickets);
       if (is_in_game) {
         participants~udict_set_builder(256, current_pubkey, begin_cell()
           .store_uint(entry_wc, 8)
@@ -518,7 +574,7 @@ _ pack_state(int seqno, int owner_pubkey, int reserved_balance, cell games) inli
         min_tickets, max_tickets, cur_tickets,
         ticket_price, prize_fund,
         repeat_count, repeat_delay,
-        prizes, participants, game_state);
+        prizes, participants, results, game_state);
     }
   } else {
     throw_unless(34, check_signature(slice_hash(in_msg), signature, owner_pubkey));
@@ -556,7 +612,7 @@ _ pack_state(int seqno, int owner_pubkey, int reserved_balance, cell games) inli
         game_type, game_flags, start_time, end_time,
         min_tickets, max_tickets, cur_tickets,
         ticket_price, prize_fund, repeat_count, repeat_delay,
-        prizes, participants, game_state
+        prizes, participants, results, game_state
       ) = game~load_game_fields();
       return_tickets(participants);
       games~udict_delete_get?(32, game_id);

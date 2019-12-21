@@ -109,6 +109,7 @@ BaseFile +".pk" load-keypair
   RepeatDelay 32 u,
   Prizes dict,
   dictnew dict, // Participants
+  dictnew dict, // Results
   dictnew dict, // State
 b> =: GameBody
 

@@ -110,10 +110,12 @@ Create a lottery that ends on December 31st of 2019, with a minimum of 100 and a
 `./new-game.fif blackjack-game 2 64 -t 10 -p 1 2 200`
 Create a game of Blackjack, with a minimum bid equal to 10 Grams, and a prize equal to 2 Grams + double your bid. There's no time restriction (you can play at any time, until the owner cancels this game).
 
-## Canceling a game
+## Canceling/deleting a game
 `./cancel-game.fif <contract> <seqno> <game-id> [-O <output-boc>]`
 
 The owner can cancel a game at any moment. All currently bought tickets/bids will be returned to players.
+
+Also this method should be used to delete old archived games. A game becomes archived after its completion. It's not removed automatically to allow players to check their final states/prizes.
 
 ## Joining a game
 `./join-game.fif <game-id> [<key-name> <ticket-count>] [-O <output-boc>]`
@@ -215,6 +217,8 @@ But most importantly, you can run `test-external.fif` or `test-internal.fif` wit
    The attached value in Grams should be at least equal to the specified ticket price multiplied by number of tickets.
 * Error **52**. *A bid is already placed*.
    This game does not allow adding money to your initial bid.
+* Error **53**. *Game is archived*.
+   This game is already finished and now archived, nobody can join it.
 
 # Fift words conventions
 

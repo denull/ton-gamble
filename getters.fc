@@ -9,6 +9,9 @@ tuple game_tuple(int game_type, int game_flags, int start_time, int end_time,
 tuple participant_tuple(int player_pubkey, int entry_wc, int entry_addr, int entry_amount, int entry_tickets)
   asm(player_pubkey entry_wc entry_addr entry_amount entry_tickets) "5 TUPLE";
 
+tuple result_tuple(int player_pubkey, int entry_wc, int entry_addr, int entry_amount, int entry_tickets, int entry_prize_total)
+  asm(player_pubkey entry_wc entry_addr entry_amount entry_tickets entry_prize_total) "6 TUPLE";
+
 tuple prize_tuple(int prize_id, int prize_type, int prize_flags, int fixed_part, int fund_percentage_part, int per_prize_probability, int ticket_count, int per_ticket_probability)
   asm(prize_id prize_type prize_flags fixed_part fund_percentage_part per_prize_probability ticket_count per_ticket_probability) "8 TUPLE";
 
@@ -46,7 +49,7 @@ _ games() method_id {
         game_type, game_flags, start_time, end_time,
         min_tickets, max_tickets, cur_tickets,
         ticket_price, prize_fund, repeat_count, repeat_delay,
-        prizes, participants, game_state
+        prizes, participants, results, game_state
       ) = game~load_game_fields();
       l = cons(game_tuple(game_type, game_flags, start_time, end_time,
         min_tickets, max_tickets, cur_tickets,
@@ -73,7 +76,7 @@ _ prizes(int game_id) method_id {
     game_type, game_flags, start_time, end_time,
     min_tickets, max_tickets, cur_tickets,
     ticket_price, prize_fund, repeat_count, repeat_delay,
-    prizes, participants, game_state
+    prizes, participants, results, game_state
   ) = game~load_game_fields();
 
   var l = nil;
@@ -123,7 +126,7 @@ _ participants(int game_id) method_id {
     game_type, game_flags, start_time, end_time,
     min_tickets, max_tickets, cur_tickets,
     ticket_price, prize_fund, repeat_count, repeat_delay,
-    prizes, participants, game_state
+    prizes, participants, results, game_state
   ) = game~load_game_fields();
 
   var l = nil;
@@ -133,6 +136,38 @@ _ participants(int game_id) method_id {
     if (f) {
       var (entry_wc, entry_addr, entry_amount, entry_tickets, entry_state) = entry~load_participant();
       l = cons(participant_tuple(player_pubkey, entry_wc, entry_addr, entry_amount, entry_tickets), l);
+    }
+  } until (~ f);
+  return l;
+}
+
+;; Returns list of previous results in a game
+
+_ results(int game_id) method_id {
+  var ds = get_data().begin_parse().skip_bits(32 + 256);
+  ds~load_grams();
+  var games = ds~load_dict();
+  if (games.null?()) {
+    return nil;
+  }
+
+  var (game, game_found) = games.udict_get?(32, game_id);
+  throw_unless(36, game_found);
+
+  var (
+    game_type, game_flags, start_time, end_time,
+    min_tickets, max_tickets, cur_tickets,
+    ticket_price, prize_fund, repeat_count, repeat_delay,
+    prizes, participants, results, game_state
+  ) = game~load_game_fields();
+
+  var l = nil;
+  var player_pubkey = (1 << 255) + ((1 << 255) - 1);
+  do {
+    (player_pubkey, var entry, var f) = results.udict_get_prev?(256, player_pubkey);
+    if (f) {
+      var (entry_wc, entry_addr, entry_amount, entry_tickets, entry_state, entry_prize_total, entry_prizes) = entry~load_result();
+      l = cons(result_tuple(player_pubkey, entry_wc, entry_addr, entry_amount, entry_tickets, entry_prize_total), l);
     }
   } until (~ f);
   return l;
