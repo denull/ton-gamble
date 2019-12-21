@@ -847,7 +847,7 @@ PROGRAM{
         s3 POP
         s3 POP
         4294967294 PUSHINT
-        50 PUSHINT
+        52 PUSHINT
         0 PUSHINT
         s3 s5 XCHG
         s2 s4 XCHG
@@ -1015,7 +1015,7 @@ PROGRAM{
         HASHSU
         s0 s7 s7 XC2PU
         CHKSIGNU
-        35 THROWIFNOT
+        34 THROWIFNOT
         s1 s2 s0 PUSH3
         s6 PUSH
         pack_state INLINECALLDICT
