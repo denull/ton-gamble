@@ -527,9 +527,10 @@ PROGRAM{
           }>
           NIP
           WHILE:<{
-            s3 PUSH
+            DUP
             0 GTINT
-            s1 s(-1) PUXC
+            s4 PUSH
+            0 GTINT
             AND
           }>DO<{
             1000000 PUSHINT
@@ -563,7 +564,7 @@ PROGRAM{
                   AND
                   IF:<{
                     s7 POP
-                    s2 PUSH
+                    s5 PUSH
                     17 s() PUSH
                     8 PUSHPOW2
                     DICTUGET
@@ -580,11 +581,35 @@ PROGRAM{
                       s7 s0 s7 XCHG3
                       DROP
                     }>
-                    s15 PUSH
+                    0 PUSHINT
+                    DUP
+                    18 s() PUSH
+                    s9 PUSH
+                    32 PUSHINT
+                    DICTUGET
+                    NULLSWAPIFNOT
+                    IF:<{
+                      NIP
+                      NIP
+                      LDGRAMS
+                      32 LDU
+                      DROP
+                    }>ELSE<{
+                      DROP
+                    }>
+                    s0 s2 XCHG
+                    17 s() PUSH
                     ADD
+                    SWAP
+                    17 s() PUSH
+                    ADD
+                    s0 s2 XCHG
+                    INC
                     NEWC
-                    16 s() PUSH
+                    s0 s3 XCHG2
                     STGRAMS
+                    s1 s2 XCHG
+                    32 STU
                     SWAP
                     32 PUSHINT
                     18 s() PUSH

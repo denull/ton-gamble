@@ -131,7 +131,8 @@ Games 32 {
     Gram@+ swap         ."    │  │  total_prize_amount: " .GR cr
                         ."    │  │  prizes_won:" cr
     dict@+ swap 32 {
-                        ."    │  │    #" over ._ .": " Gram@+ swap .GR cr
+                        ."    │  │    #" over ._ .": " Gram@+ swap .GR
+                        ." (" 32 u@+ swap dup . ."ticket" 1 > { ."s" } if .")" cr
       -1
     } dictforeach
     drop
