@@ -54,13 +54,16 @@ Games 32 {
     8 u@+ swap      ."    │  │  prize_type:         " . cr
     64 u@+ swap     ."    │  │  prize_flags:        " . cr
     Gram@+ swap     ."    │  │  fixed_amount:       " .GR cr
-    32 u@+ swap     ."    │  │  fund_percentage:    " . ."/ 1000000" cr
     2 pick 64 < {
+      32 u@+ swap   ."    │  │  fund_percentage:    " . ."/ 1000000" cr
+                    ."    │  │" cr
       32 u@+ swap   ."    │  │  per_prize_probability:  " . ."/ 1000000" cr
       32 u@+ swap   ."    │  │  ticket_count:           " . cr
       32 u@+ swap   ."    │  │  per_ticket_probability: " . ."/ 1000000" cr
-    } if
-    ."    │  └" cr
+    } {
+      32 u@+ swap     ."    │  └  fund_percentage:    " . ."/ 1000000" cr
+    } cond
+    
     drop -1
   } dictforeach
   drop
