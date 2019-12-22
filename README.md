@@ -181,6 +181,8 @@ List of available methods:
    Returns the list of prizes in a game.
 * `participants(game_id)`
    Returns the list of players in a game.
+* `results(game_id)`
+   Returns the list of players' results in a previous game.
 
 # Troubleshooting
 
@@ -224,6 +226,8 @@ But most importantly, you can run `test-external.fif` or `test-internal.fif` wit
    This game does not allow adding money to your initial bid.
 * Error **53**. *Game is archived*.
    This game is already finished and now archived, nobody can join it.
+
+For internal messages, instead of throwing errors, the error code is returned as a 32-bit number in the body of the response, after 32-bit *op* (=`0xfffffffe`), 64-bit *query_id*, and 32-bit original *op*.
 
 # Fift words conventions
 
