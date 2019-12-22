@@ -1194,6 +1194,10 @@ PROGRAM{
         36 THROWIFNOT
         ~load_game_fields CALLDICT
         s15 POP
+        s12 PUSH
+        63 PUSHPOW2
+        AND
+        53 THROWIF
         21 s() PUSH
         s2 PUSH
         8 PUSHPOW2
@@ -1402,9 +1406,16 @@ PROGRAM{
               ~load_game_fields CALLDICT
               s2 s12 XCHG
               12 BLKDROP
-              s0 s3 XCHG
-              3 BLKDROP
-              return_tickets CALLDICT
+              s2 POP
+              s2 POP
+              SWAP
+              63 PUSHPOW2
+              AND
+              IFNOT:<{
+                return_tickets CALLDICT
+              }>ELSE<{
+                DROP
+              }>
               ROT
               32 PUSHINT
               DICTUDELGET

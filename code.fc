@@ -522,6 +522,8 @@ _ pack_state(int seqno, int owner_pubkey, int reserved_balance, cell games) inli
       prizes, participants, results, game_state
     ) = game~load_game_fields();
 
+    throw_if(53, game_flags & 0x8000000000000000); ;; ignore archived games
+
     var (entry, entry_found) = participants.udict_get?(256, current_pubkey);
     throw_unless(40, entry_found); ;; this is not a participant of that game
     
@@ -608,7 +610,11 @@ _ pack_state(int seqno, int owner_pubkey, int reserved_balance, cell games) inli
         ticket_price, prize_fund, repeat_count, repeat_delay,
         prizes, participants, results, game_state
       ) = game~load_game_fields();
-      return_tickets(participants);
+
+      ifnot (game_flags & 0x8000000000000000) { ;; only if game is not archived
+        return_tickets(participants);
+      }
+
       games~udict_delete_get?(32, game_id);
     } elseif (op == 4) {
       ;; Upgrade contract's code
