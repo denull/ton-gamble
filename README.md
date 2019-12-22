@@ -62,6 +62,8 @@ As soon as max number of tickets is sold (or at the specified end time), the pri
 
 Other games, like a Blackjack, usually require the participant to make moves after joining the game. To do that, one generates external messages with `make-move.fif` script, signing them with a key he provided when joined the game.
 
+## TBD: Off-chain interactions
+
 In future, there planned more sophisticated games, allowing multiple participants to interact with each other (not just with the dealer). This poses some difficult problems to solve, so such games are not yet implemented. In particular, there's two requirements:
 1. There should be some random, but unknown to players (until the end of the game) state. As the state of the smart contract itself is stored in the blockchain and available for everybody, it's not suitable for this purpose.
 2. Players need to be able to frequently make moves during the game. Making those moves by sending messages to the contract can slow down the game, so it would be preferable to do off-chain.
@@ -215,7 +217,7 @@ But most importantly, you can run `test-external.fif` or `test-internal.fif` wit
 * Error **47**. *Game is already ended*.
    You can't participate after the game end.
 * Error **48**. *Ticket count must be non-negative*.
-   The amount of tickets you're trying to buy is less or equal to zero.
+   The amount of tickets you're trying to buy is less than or equal to zero.
 * Error **49**. *Not enough money to buy specified number of tickets*.
    The attached value in Grams should be at least equal to the specified ticket price multiplied by number of tickets.
 * Error **52**. *A bid is already placed*.

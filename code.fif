@@ -330,9 +330,11 @@ PROGRAM{
         1000000 PUSHINT
         DIV
         ADD
+        1 PUSHINT
         NEWC
-        OVER
+        s2 PUSH
         STGRAMS
+        32 STU
         SWAP
         32 PUSHINT
         s3 s7 s7 PUXC2

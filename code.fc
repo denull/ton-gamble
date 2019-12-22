@@ -165,7 +165,7 @@
       ;; Calculate actual prize size (some fixed part + predefined percentage of the total prize fund)
       var prize_amount = fixed_part + player_bid * fund_percentage_part / 1000000;
 
-      entry_prizes~udict_set_builder(32, outcome, begin_cell().store_grams(prize_amount));
+      entry_prizes~udict_set_builder(32, outcome, begin_cell().store_grams(prize_amount).store_uint(1, 32));
       results~udict_set_builder(256, player_pubkey, begin_cell()
         .store_int(player_wc, 8)
         .store_uint(player_addr, 256)
