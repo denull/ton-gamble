@@ -461,8 +461,8 @@ _ pack_state(int seqno, int owner_pubkey, int reserved_balance, cell games) inli
 
     if (is_in_game) {
       participants~udict_set_builder(256, player_pubkey, begin_cell()
-        .store_int(src_wc, 8)
-        .store_uint(src_addr, 256)
+        .store_int(entry_wc, 8)
+        .store_uint(entry_addr, 256)
         .store_grams(entry_amount)
         .store_uint(entry_tickets, 32)
         .store_dict(entry_state)

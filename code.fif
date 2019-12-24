@@ -1011,101 +1011,96 @@ PROGRAM{
       0 PUSHINT
       s0 s13 s12 PUSH3
       get_initial_state CALLDICT
-      26 s() PUSH
-      29 s() PUSH
-      s0 22 s() XCHG
+      s0 20 s() XCHG
       IF:<{
-        4 BLKDROP
+        2DROP
         17 s() POP
-        s0 21 s() XCHG
+        22 s() POP
+        23 s() POP
+        s0 19 s() XCHG
         ~load_participant CALLDICT
         s5 POP
       }>ELSE<{
-        s5 26 s() XCHG
-        s4 21 s() XCHG
-        s5 s4 XCHG2
-        3 -ROLL
+        s4 27 s() XCHG
+        s3 25 s() XCHG
+        s5 24 s() XCHG
+        s2 19 s() XCHG
+        4 2 REVERSE
+        ROT
         DROP
       }>
       SWAP
-      29 s() PUSH
-      ADD
-      SWAP
       27 s() PUSH
       ADD
-      s1 s7 XCHG
-      s0 29 s() XCHG
+      SWAP
+      25 s() PUSH
       ADD
-      s1 s8 XCHG
-      s0 26 s() XCHG
+      s1 s5 XCHG
+      s0 27 s() XCHG
+      ADD
+      s1 s6 XCHG
+      s0 24 s() XCHG
       ADD
       TRUE
       FALSE
-      s15 PUSH
+      s13 PUSH
       0 EQINT
       IF:<{
         DROP
-        s2 POP
-        s7 POP
-        s6 s7 PUSH2
+        s1 s7 PUSH2
         GEQ
       }>ELSE<{
-        s15 PUSH
+        s13 PUSH
         64 EQINT
         IF:<{
           NIP
           TRUE
-          s15 PUSH
-          s4 s15 XCPU
-          s4 s6 XCPU
-          s0 s4 XCHG
-          28 s() PUSH
-          s0 s3 XCHG
-          s2 21 s() XCHG
-          22 s() PUSH
-          s0 s1 s14 XCHG3
-          s12 PUSH
+          s13 s(-1) s0 PUXC2
+          s13 s(-1) s0 PUXC2
+          s6 s(-1) s0 PUXC2
+          27 s() PUSH
+          SWAP
+          s0 19 s() XCHG
+          20 s() PUSH
+          s8 s12 s10 PUSH3
           35 s() PUSH
           blackjack_check_state CALLDICT
         }>ELSE<{
-          s2 17 s() XCHG
-          s3 s9 XCHG2
-          2DROP
+          s0 s15 XCHG
         }>
         s0 s15 XCHG
-        s0 s7 XCHG
       }>
       SWAP
       IF:<{
         NEWC
-        s1 24 s() XCHG
+        s1 s3 XCHG
         8 STI
-        s1 25 s() XCHG
+        s1 s6 XCHG
         256 STU
         s0 s3 XCHG2
         STGRAMS
         s1 24 s() XCHG
         32 STU
-        s1 22 s() XCHG
+        s1 23 s() XCHG
         STDICT
         s0 s11 s13 XCHG3
         8 PUSHPOW2
         DICTUSETB
       }>ELSE<{
-        s3 26 s() XCHG
-        s2 25 s() XCHG
-        s0 23 s() XCHG
-        s6 17 s() XCHG
+        s0 26 s() XCHG
+        s1 17 s() XCHG
         s5 s15 XCHG
+        s1 s6 XCHG
         6 BLKDROP
       }>
       s6 PUSH
       0 EQINT
-      18 s() PUSH
+      21 s() PUSH
       AND
       IF:<{
         s8 POP
-        s15 s7 PUSH2
+        16 s() PUSH
+        s8 PUSH
         19 s() PUSH
         lottery_raffle CALLDICT
       }>ELSE<{
@@ -1113,6 +1108,7 @@ PROGRAM{
       }>
       s15 17 s() XCHG
       s10 16 s() XCHG
+      s15 20 s() XCHG
       s6 s14 XCHG
       s5 s13 XCHG
       s4 s12 XCHG
@@ -1121,9 +1117,10 @@ PROGRAM{
       s3 s8 XCHG
       s1 s7 XCHG
       s6 18 s() XCHG
-      s5 20 s() XCHG
+      s2 s5 XCHG
       s4 19 s() XCHG
-      s2 s3 XCHG
+      s3 20 s() XCHG
+      s2 20 s() XCHG
       SWAP
       ~store_game CALLDICT
       s3 s3 s0 XCHG3
