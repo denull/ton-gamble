@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+  <head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<meta http-equiv="X-UA-Compatible" content="chrome=1,IE=edge" />
+	<title>index</title>
+	<style>
+		html {
+			height:100%;
+		}
+		body {
+			background-color:#222;
+			margin:0;
+			height:100%;
+		}
+	</style>
+	<!-- copy these lines to your document head: -->
+
+	<meta name="viewport" content="user-scalable=yes, width=600" />
+	<link href='https://fonts.googleapis.com/css?family=Encode+Sans+Semi+Expanded:300&subset=latin' rel='stylesheet' type='text/css'>
+	<link href='https://fonts.googleapis.com/css?family=Encode+Sans+Semi+Expanded:700&subset=latin' rel='stylesheet' type='text/css'>
+	<link href='https://fonts.googleapis.com/css?family=Encode+Sans:500&subset=latin' rel='stylesheet' type='text/css'>
+	<link href='https://fonts.googleapis.com/css?family=Encode+Sans+Semi+Expanded:500&subset=latin' rel='stylesheet' type='text/css'>
+	<link href='https://fonts.googleapis.com/css?family=Fira+Code&subset=latin' rel='stylesheet' type='text/css'>
+
+	<!-- end copy -->
+  </head>
+  <body>
+	<!-- copy these lines to your document: -->
+
+	<div id="index_hype_container" class="HYPE_document" style="margin:auto;position:relative;width:600px;height:400px;overflow:hidden;">
+		<script type="text/javascript" charset="utf-8" src="index.hyperesources/index_hype_generated_script.js?84412"></script>
+	</div>
+
+	<!-- end copy -->
+	
+
+
+	<!-- text content for search engines: -->
+
+	<div style="display:none" aria-hidden=true>
+
+		<div></div>
+		<div>is an innovative blockchain platform
+made by the developers of Telegram messenger
+</div>
+		<div>TON</div>
+		<div>Just like Telegram, TON is going to be faster
+and more powerful than its competitors</div>
+		<div>Millions of people will be able to use the new cryptocurrency:
+Grams</div>
+		<div>1 G</div>
+		<div>But there's no point in a currency
+if there's no way to spend it</div>
+		<div>And you know the most fun way to do that: lotteries and games!</div>
+		<div>() send_money(int wc, int addr, int amount) impure {
+  send_raw_message(begin_cell()
+    .store_uint(0xc4, 9)
+    .store_int(wc, 8)
+    .store_uint(addr, 256)
+    .store_grams(amount)
+    .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+    .store_uint(0, 32) ;; Simple money transfer
+  .end_cell(), 3);
+}
+
+() send_message_back(slice addr, ans_tag, query_id, body, extra, grams, mode) impure {
+  ;; int_msg_info$0 ihr_disabled:Bool bounce:Bool bounced:Bool src:MsgAddress -> 011000
+  var msg = begin_cell()
+    .store_uint(0x18, 6)
+    .store_slice(addr)
+    .store_grams(grams)
+    .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+    .store_uint(ans_tag, 32)
+    .store_uint(query_id, 64);
+  if (body >= 0) {
+    msg~store_uint(body, 32);
+  }
+  if (extra >= 0) {
+    msg~store_uint(extra, 32);
+  }
+  send_raw_message(msg.end_cell(), mode);
+}
+
+(slice, (int, cell, int, int, int, int, int, int)) ~load_common_auction_fields(slice auction) {
+  var fields = (auction~load_uint(8), auction~load_dict(),
+    auction~load_uint(32), auction~load_uint(32), 
+    auction~load_grams(), auction~load_grams(), auction~load_grams(),
+    auction~load_uint(32)
+  );
+  return (auction, fields);
+}
+
+_ pack_state(int seqno, int owner_pubkey, slice notification_addr, int reserved_balance, cell auctions) inline_ref {
+  return begin_cell()
+    .store_uint(seqno, 32)
+    .store_uint(owner_pubkey, 256)
+    .store_slice(notification_addr)
+    .store_grams(reserved_balance)
+    .store_dict(auctions)
+  .end_cell();
+}
+
+(int, int, slice, int, cell) unpack_state() {
+  var cs = get_data().begin_parse();
+  var res = (cs~load_uint(32), cs~load_uint(256), cs~load_bits(256 + 8), cs~load_grams(), cs~load_dict());
+  cs.end_parse();
+  return res;
+}
+
+(int, int, int, int, int) check_blind_bids(auction_type, bidding_fee, bids, reserved_balance, force_completion) {
+  var winner_wc = 0;
+  var winner_addr = 0;
+  var winner_bid = 0;
+  var winner_sent = 0;
+  var all_decrypted = true;
+  var bidder_addr = -1;
+  do {
+    (bidder_addr, var bid, var f) = bids.udict_get_next?(256, bidder_addr);
+    if (f) {
+      var wc = bid~load_int(8);
+      var received_amount = bid~load_grams();
+      var bid_signature = bid~load_bits(512);
+      ifnot (bid.slice_data_empty?()) {
+        var actual_amount = bid~load_grams();
+        if (actual_amount > winner_bid) {
+          ;; TODO: handle case when there's two equal top bids (the first one wins?)
+          winner_wc = wc;
+          winner_addr = bidder_addr;
+          winner_bid = actual_amount;
+          winner_sent = received_amount;
+        }
+      } else {
+        all_decrypted = false;
+      }
+    }
+  } until (~ f);
+
+  if ((winner_bid == 0) | (~ force_completion & ~ all_decrypted)) {
+    return (winner_wc, winner_addr, winner_bid, all_decrypted, reserved_balance);
+  }
+
+  bidder_addr = -1;
+  var second_bid = 0;
+  do {
+    (bidder_addr, var bid, var f) = bids.udict_get_next?(256, bidder_addr);
+    if (f) {
+      var wc = bid~load_int(8);
+      var received_amount = bid~load_grams();
+      ifnot (bidder_addr == winner_addr) {
+        reserved_balance = reserved_balance - (received_amount - bidding_fee);
+        send_money(wc, bidder_addr, received_amount - bidding_fee);
+
+        var bid_signature = bid~load_bits(512);
+        ifnot (bid.slice_data_empty?()) {
+          var actual_amount = bid~load_grams();
+          if ((actual_amount > second_bid) & (actual_amount < winner_bid)) {
+            second_bid = actual_amount;
+          }
+        }
+      }
+    }
+  } until (~ f);
+
+  if (second_bid == 0) {
+    second_bid = winner_bid;
+  }
+
+  if (auction_type == 65) {
+    ;; Vickrey auction: winner pays second price instead of his own
+    winner_bid = second_bid;
+  }
+
+  reserved_balance = reserved_balance - (winner_sent - bidding_fee);
+
+  if (winner_sent > winner_bid) {
+    send_money(winner_wc, winner_addr, winner_sent - winner_bid);
+  }
+
+  return (winner_wc, winner_addr, winner_bid, all_decrypted, reserved_balance);
+}
+
+(int) return_blind_bids(bids, reserved_balance, bidding_fee) {
+  var bidder_addr = -1;
+  do {
+    (bidder_addr, var bid, var f) = bids.udict_get_next?(256, bidder_addr);
+    if (f) {
+      var wc = bid~load_int(8);
+      var received_amount = bid~load_grams();
+      reserved_balance = reserved_balance - (received_amount - bidding_fee);
+      send_money(wc, bidder_addr, received_amount - bidding_fee);
+    }
+  } until (~ f);
+  return reserved_balance;
+}
+
+(cell, ()) ~complete_auction(cell auctions, int auction_id, slice notification_addr, int winner_wc, int winner_addr, int winner_bid) impure {
+  var (auction, auction_found) = auctions~udict_delete_get?(32, auction_id);
+  send_raw_message(begin_cell()
+    .store_uint(0xc4, 9)       ;; 0 11000100
+    .store_slice(notification_addr)
+    .store_grams(1 << 30)
+    .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+    .store_uint(0x27fca6b9, 32)   ;; Notification query
+    .store_uint(auction_id, 64)
+    .store_int(winner_wc, 8)     ;; Bidder workchain
+    .store_uint(winner_addr, 256) ;; Bidder addr (can be 0 if there was no bids!)
+    .store_grams(winner_bid)      ;; Winning bid amount
+    .store_ref( ;; Detailed info about auction (before this bid)
+      begin_cell().store_slice(auction).end_cell()
+    )
+  .end_cell(), 3);
+  return (auctions, ());
+}
+</div>
+		<div>However, that requires very specific knowledge of the upcoming platform
+and serious programming skills
+
+</div>
+		<div>You can make use of TON's smartcontracts to implement almost any of those activities from scratch
+
+</div>
+		<div>So we provide a simpler solution
+</div>
+		<div>is an open-source, production-ready
+smart-contract for TON
+</div>
+		<div>ton-gamble</div>
+		<div>allowing anyone with minimal techical skills
+to setup it and start their own virtual casino
+</div>
+		<div>And it's completely free</div>
+		<div>Currently there're two configurable types of games included: Blackjack and a lottery
+</div>
+		<div>
+...to the price of a ticket and
+list of prizes
+</div>
+		<div>Gr
+</div>
+		<div>It's up to you to setup everything
+</div>
+		<div>from the number of participants and
+how often games will happen...
+</div>
+		<div>You can use this smart-contract as a framework,
+adding more games and activities:
+even multiplayer ones
+</div>
+		<div>TON is currently in the final stages of its testing</div>
+		<div>You can start by reading
+the "Getting Started" section below
+</div>
+		<div>So don’t waste any time:</div>
+		<div>And that's not all
+</div>
+
+	</div>
+
+	<!-- end text content: -->
+
+  </body>
+</html>
