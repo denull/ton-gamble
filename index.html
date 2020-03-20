@@ -29,7 +29,7 @@ body, p {
 body, h1, h2, h3, h4, h5, h6 {
   font-family: 'Encode Sans', sans-serif;
 }
-h1, h2 {
+h1, h2, h3 {
   margin: 40px 0 20px;
 }
 code {
@@ -146,11 +146,11 @@ li {
   </div>
   <div class="container">
     <div id="description" class="anchor"></div>
-    <h1>Getting Started</h1>
+    <h2>Getting Started</h2>
 <p><b>ton-gamble</b> is a smart-contract for TON blockchain implementing a platform for different gambling activities (such as lotteries or card games). It was made by Denis Olshin as part of Telegram contest announced on 09/24/2019 (<a href="https://t.me/contest/102">https://t.me/contest/102</a>).</p>
 <p>Instructions below assume that you are using <a href="https://github.com/ton-blockchain/ton/tree/master/lite-client-docs">TON&#39;s lite-client</a> with FunC and Fift binaries available at PATH, and that you&#39;re familiar with those tools.</p>
 <p>For basic info about running Fift scripts and uploading messages to TON, please refer to <a href="https://github.com/ton-blockchain/ton/blob/master/doc/LiteClient-HOWTO">https://github.com/ton-blockchain/ton/blob/master/doc/LiteClient-HOWTO</a>.</p>
-<h1 id="what-s-included">What&#39;s included</h1>
+<h2 id="what-s-included">What&#39;s included</h2>
 <p><a href="https://github.com/deNULL/ton-gamble">The Github repository of this project</a> contains following files:</p>
 <ul>
 <li><code>common-utils.fif</code>
@@ -179,19 +179,19 @@ li {
  Directory containing some shell scripts for testing purposes. Note that you&#39;ll probably need to fix paths in them before using.</li>
 </ul>
 <p>If you wish to make modifications to the contract&#39;s code, it&#39;s better to test it using <code>test-...</code> scripts without actually uploading it to the blockchain. The same can be done in case something goes wrong (see &quot;Troubleshooting&quot; section below).</p>
-<h1 id="-re-building-the-contract-code">(Re)building the contract code</h1>
+<h2 id="-re-building-the-contract-code">(Re)building the contract code</h2>
 <p>As was mentioned above, the smart contract code is located in <code>code.fc</code> and its getters are in <code>getters.fc</code>. These files are written in FunC language, so after you make any changes to them, you need to run FunC transpiler before you can upload the updated code.</p>
 <p>Run these commands (<code>&lt;path-to-source&gt;</code> here is the root directory with the TON source code):</p>
 <pre><code>func -o<span class="hljs-string">"code-getters.fif"</span> -P &lt;path-to-source&gt;/crypto/smartcont/stdlib<span class="hljs-selector-class">.fc</span> <span class="hljs-selector-tag">code</span><span class="hljs-selector-class">.fc</span> getters<span class="hljs-selector-class">.fc</span>
 func -o<span class="hljs-string">"code.fif"</span> -P &lt;path-to-source&gt;/crypto/smartcont/stdlib<span class="hljs-selector-class">.fc</span> <span class="hljs-selector-tag">code</span>.fc
 </code></pre><p>This should rebuild files <code>code-getters.fif</code> (full version of the contract) and <code>code.fif</code> (stripped-down version, without getters).</p>
-<h1 id="how-to-use">How to use</h1>
+<h2 id="how-to-use">How to use</h2>
 <p>The idea behind this smart contract is to implement a framework for different gambling activities, such as lotteries, slot machines, card and board games. Two initial examples are provided for now: a simple lottery and a Blackjack card game.</p>
 <p>At any time the owner of the smart contract can start a new game of any supported type. After that, everyone is free to join that game by sending <strong>an internal message</strong> to the contract (use <code>join-game.fif</code> to generate bodies of such messages). The Gram value attached to such message becomes his stake at the game.</p>
 <p>A lottery is the simplest case of a game. It does not require further actions from the participant or the owner (except for initiating a game). When a new game of lottery is created, the owner sets up its start/end time, min/max number of tickets sold, price of a ticket, initial prize fund, amounts of prizes and their counts/probabilities (see the <code>new-game.fif</code> script for details).</p>
 <p>As soon as max number of tickets is sold (or at the specified end time), the prizes are distributed among participants automatically by the contract. In case there&#39;s not enough tickets sold (less than specified min number), the game is cancelled and all stakes are returned.</p>
 <p>Other games, like a Blackjack, usually require the participant to make moves after joining the game. To do that, one generates external messages with <code>make-move.fif</code> script, signing them with a key he provided when joined the game.</p>
-<h2 id="tbd-off-chain-interactions">TBD: Off-chain interactions</h2>
+<h3 id="tbd-off-chain-interactions">TBD: Off-chain interactions</h3>
 <p>In future, there planned more sophisticated games, allowing multiple participants to interact with each other (not just with the dealer). This poses some difficult problems to solve, so such games are not yet implemented. In particular, there&#39;s two requirements:</p>
 <ol>
 <li>There should be some random, but unknown to players (until the end of the game) state. As the state of the smart contract itself is stored in the blockchain and available for everybody, it&#39;s not suitable for this purpose.</li>
@@ -200,10 +200,10 @@ func -o<span class="hljs-string">"code.fif"</span> -P &lt;path-to-source&gt;/cry
 <p>To solve those problems, the owner should keep the game state externally, and update it in response to players&#39; moves. After the game ends, the owner submits all that data to the contract for validation. Only if it&#39;s correct (does not violate game rules and contains valid players&#39; signatures), the winner receives the prize money.</p>
 <p>The initial state (i.e. &quot;shuffled card deck&quot;) in such game should be chosen randomly, however some measures need to be taken to prevent altering it during the game. For that reason, some random seed is chosen at the moment of game creation (even before players join) and its hash is stored as part of the game record. When game starts, this seed is additionally hashed with the list of participants, and is used to initialise PRNG. After the game end, the owner submits the seed, so it can be validated by everyone.</p>
 <p>It should be noted that this mechanism is not preventing the owner from cheating by joining the game as another participant. Knowing the secret random seed would allow to effectively peek into other players&#39; hands, so there should be present some level of trust to the owner.</p>
-<h2 id="initialising-a-new-contract">Initialising a new contract</h2>
+<h3 id="initialising-a-new-contract">Initialising a new contract</h3>
 <p><code>./init.fif &lt;workchain-id&gt; [&lt;filename-base&gt;] [-C &lt;code-fif&gt;]</code></p>
 <p>This script is used to generate an initialisation message for your contract. It will provide you with a non-bounceable address to send some initial funds to, and after that you can upload to contract&#39;s code (using <code>sendfile</code> in your TON client).</p>
-<h2 id="starting-a-new-game">Starting a new game</h2>
+<h3 id="starting-a-new-game">Starting a new game</h3>
 <p><code>./new-game.fif &lt;contract&gt; &lt;seqno&gt; &lt;game-id&gt; &lt;game-type&gt; [&lt;options&gt;] [-O &lt;output-boc&gt;]</code></p>
 <p>Starts a new game with provided identifier, type and additional options.</p>
 <p>For now, two types of games are supported:</p>
@@ -235,35 +235,35 @@ Defines a prize in a lottery (see -p option above) with the probability of givin
 Create a lottery that ends on December 31st of 2019, with a minimum of 100 and a maximum of 1000 participants. One ticket has a price of 1 Gram. The initial size of a prize fund is 500 Grams, this is a Jackpot, which will be given with a 1% probabiltity. Additionally, there&#39;s 100 prizes with each one equal to 0.5% of the total prize fund (i.e. 50% in total), and 50 prizes 2 Grams each (100 Grams total), but each of these 50 prizes has only 60% probability (so in reality there will be less than 50 prizes).</p>
 <p><code>./new-game.fif blackjack-game 2 64 -t 10 -p 1 2 200 -p 2 0 100</code>
 Create a game of Blackjack, with a minimum bid equal to 10 Grams, and a prize equal to 2 Grams + double your bid. There&#39;s no time restriction (you can play at any time, until the owner cancels this game).</p>
-<h2 id="canceling-deleting-a-game">Canceling/deleting a game</h2>
+<h3 id="canceling-deleting-a-game">Canceling/deleting a game</h3>
 <p><code>./cancel-game.fif &lt;contract&gt; &lt;seqno&gt; &lt;game-id&gt; [-O &lt;output-boc&gt;]</code></p>
 <p>The owner can cancel a game at any moment. All currently bought tickets/bids will be returned to players.</p>
 <p>Also this method should be used to delete old archived games. A game becomes archived after its completion. It&#39;s not removed automatically to allow players to check their final states/prizes.</p>
-<h2 id="joining-a-game">Joining a game</h2>
+<h3 id="joining-a-game">Joining a game</h3>
 <p><code>./join-game.fif &lt;game-id&gt; [&lt;key-name&gt; &lt;ticket-count&gt;] [-O &lt;output-boc&gt;]</code></p>
 <p>Prepare an internal message body to participate in a game with the specified identifier. You can also provide the number of tickets you wish to buy (for lottery-style games only; games with arbitrary bids should always accept a single ticket).</p>
 <p>After running this script, you&#39;ll have two files: a private key (in <code>&lt;key-name&gt;.pk</code>) to later sign your moves, and a internal message&#39;s body in <code>&lt;output-boc&gt;.boc</code>. That body you need to send in a internal message from your wallet, with the required amount of Grams attached to it.</p>
 <p>After that you&#39;ll become a participant of that game.</p>
-<h2 id="making-a-move">Making a move</h2>
+<h3 id="making-a-move">Making a move</h3>
 <p><code>./make-move.fif &lt;contract-addr&gt; &lt;key-name&gt; &lt;seqno&gt; &lt;game-id&gt; &lt;action&gt; [-O &lt;output-boc&gt;]</code></p>
 <p>Make a move in a game that you&#39;re participating in. You need to provide a game contract address and also a <code>&lt;key-name&gt;</code>, pointing to a file, generated with <code>join-game.fif</code>.</p>
 <p>For lotteries, there&#39;s only one possible action: <code>0</code>, to &quot;ping&quot; a lottery. This will trigger a raffle if a lottery is ended.</p>
 <p>For Blackjack, you have two usual options: to stand (action = <code>0</code>) or to hit (action = <code>1</code>). After that the dealer&#39;s turn will be computed automatically. To inspect your current cards in hand, export the current contract&#39;s state (via <code>getaccountdata</code> command in liteclient) and then use the <code>show-state.fif</code> script (see below). It will display your cards (and show their numeric value). The same can be done to check your last game outcome (including the final hands).</p>
-<h2 id="updating-game-state">Updating game state</h2>
+<h3 id="updating-game-state">Updating game state</h3>
 <p><code>./update-game.fif &lt;contract&gt; &lt;seqno&gt; &lt;game-id&gt; &lt;state-boc&gt; [-O &lt;output-boc&gt;]</code></p>
 <p>This script will later be used to synchronise the off-chain state with the on-chain one. It&#39;s required when an off-chain game ends, or when any participant of a game forces such update (by committing a move to the contract).</p>
 <p>As now there&#39;s no games with the support of off-chain interaction, this is not supported yet.</p>
-<h2 id="withdrawing-funds-from-the-contract">Withdrawing funds from the contract</h2>
+<h3 id="withdrawing-funds-from-the-contract">Withdrawing funds from the contract</h3>
 <p><code>./withdraw.fif &lt;contract&gt; &lt;dest-addr&gt; &lt;seqno&gt; &lt;amount&gt; [-O &lt;output-boc&gt;]</code></p>
 <p>At any moment, the owner of the contract can withdraw any amount of Grams stored in it, if the remaining balance of enough to pay back all current bids.</p>
-<h2 id="upgrading-contract-s-code">Upgrading contract&#39;s code</h2>
+<h3 id="upgrading-contract-s-code">Upgrading contract&#39;s code</h3>
 <p><code>./upgrade-code.fif &lt;contract&gt; &lt;seqno&gt; [-C &lt;code-fif&gt;] [-O &lt;output-boc&gt;]</code></p>
 <p>Use this request to update your contract&#39;s code. By default it uses code from <code>code-getters.fif</code>, but you can pass any file via <code>-C</code> option.</p>
-<h2 id="inspecting-cotract-s-state">Inspecting cotract&#39;s state</h2>
+<h3 id="inspecting-cotract-s-state">Inspecting cotract&#39;s state</h3>
 <p><code>./show-state.fif &lt;data-boc&gt;</code></p>
 <p>This script will help you to examine the current state of the contract. First, you need to download its state using the <code>saveaccountdata &lt;filename&gt; &lt;addr&gt;</code> command in the shell of your client. After that you can pass the generated boc-file to this script.</p>
 <p>It should output detailed info about cotract&#39;s params, list of active games, information about each player and per-player results in a previous game. Alternatively, you can use get-methods to inspect those values (see the next section).</p>
-<h1 id="get-methods">Get methods</h1>
+<h2 id="get-methods">Get methods</h2>
 <p>In case you&#39;ve used the default (non-stripped down) version of the contract, it will include some get-methods. You can run them in the TON client using the <code>runmethod</code> command. Note that they return raw data, so you may prefer using <code>show-state.fif</code> instead (see &quot;Inspecting contract&#39;s state&quot; section). </p>
 <p>List of available methods:</p>
 <ul>
@@ -284,7 +284,7 @@ Create a game of Blackjack, with a minimum bid equal to 10 Grams, and a prize eq
 </ul>
 
 <div id="troubleshooting" class="anchor"></div>
-<h1 id="troubleshooting">Troubleshooting</h1>
+<h2 id="troubleshooting">Troubleshooting</h2>
 <p>After the request is uploaded to TON, there&#39;s no practical way to check what&#39;s happening with it (until it will be accepted). So if something goes wrong and your message is not accepted by the contract, you can only guess why.</p>
 <p>Fortunately, there&#39;s couple of scripts that will help in this situation. First, you need to perform <code>saveaccountdata &lt;filename&gt; &lt;addr&gt;</code> command in the TON client shell. This will produce a boc-file containing current state of your contract.</p>
 <p>Now you can inspect it using <code>show-state.fif</code>. Alternatively, you can manually call get-methods of the contract using <code>test-method.fif</code> (it should produce the same info, but in raw format).</p>
@@ -324,7 +324,7 @@ Create a game of Blackjack, with a minimum bid equal to 10 Grams, and a prize eq
  This game is already finished and now archived, nobody can join it.</li>
 </ul>
 <p>For internal messages, instead of throwing errors, the error code is returned as a 32-bit number in the body of the response, after 32-bit <em>op</em> (=<code>0xfffffffe</code>), 64-bit <em>query_id</em>, and 32-bit original <em>op</em>.</p>
-<h1 id="fift-words-conventions">Fift words conventions</h1>
+<h2 id="fift-words-conventions">Fift words conventions</h2>
 <p>Fift language is quite flexible, but it can be difficult to read. There&#39;s two main reasons for that: stack juggling and no strict conventions for word names. To make the code more readable, some custom conventions were introduced within this repository:</p>
 <p><code>kebab-case-words()</code> are helper functions (defined in <code>common-utils.fif</code>). Note that the name includes the parentheses at the end. (The only exceptions are <code>maybe,</code> and <code>maybe@+</code>)</p>
 <p><code>CamelCaseWords</code> are constants, defined using a <code>=:</code> word.</p>
